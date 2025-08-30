@@ -1,125 +1,129 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-class USAC_Frontend {
-    public static function register_shortcodes(){
-        add_shortcode('usaalo_cotizador', [__CLASS__, 'shortcode']);
+class USAALO_Frontend {
+
+    public function __construct() {
+        add_shortcode('usaalo_cotizador', [$this, 'render_form']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_action('wp_ajax_usaalo_calculate_price', [$this, 'ajax_calculate_price']);
+        add_action('wp_ajax_nopriv_usaalo_calculate_price', [$this, 'ajax_calculate_price']);
     }
 
-    public static function enqueue_assets(){
-        // Select2 desde CDN (ligero y estable)
-        wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', [], '4.1.0');
-        wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', ['jquery'], '4.1.0', true);
+    public function enqueue_assets() {
+        wp_enqueue_style('usaalo-select2', plugin_dir_url(__FILE__) . '../assets/lib/select2.min.css', [], '4.0.13');
+        wp_enqueue_style('usaalo-frontend', plugin_dir_url(__FILE__) . '../assets/css/frontend.css', [], '1.0');
 
-        // Estilos + Wizard JS
-        wp_enqueue_style('usac-wizard', USAC_URL.'assets/css/wizard.css', [], USAC_VER);
-        wp_enqueue_script('usac-polyfills', USAC_URL.'assets/js/polyfills.js', [], USAC_VER, true);
-        wp_enqueue_script('usac-wizard', USAC_URL.'assets/js/wizard.js', ['jquery','select2'], USAC_VER, true);
+        wp_enqueue_script('usaalo-select2', plugin_dir_url(__FILE__) . '../assets/lib/select2.min.js', ['jquery'], '4.0.13', true);
+        wp_enqueue_script('usaalo-frontend', plugin_dir_url(__FILE__) . '../assets/js/frontend.js', ['jquery', 'usaalo-select2'], '1.0', true);
 
-        wp_localize_script('usac-wizard', 'USAC', [
-            'ajax'  => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('usac_nonce'),
-            'currency' => get_option('usac_currency','USD'),
+        wp_localize_script('usaalo-frontend', 'USAALO_Frontend', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce('usaalo_frontend_nonce'),
         ]);
     }
 
-    public static function shortcode(){
-        ob_start(); ?>
-        <div id="usac-wizard" class="usac-wizard">
-          <div class="usac-steps">
-            <div class="usac-step is-active" data-step="1">1. País & Dispositivo</div>
-            <div class="usac-step" data-step="2">2. SIM & Servicios</div>
-            <div class="usac-step" data-step="3">3. Duración & Fechas</div>
-            <div class="usac-step" data-step="4">4. Resumen</div>
-          </div>
-
-          <div class="usac-panels">
-            <!-- Paso 1 -->
-            <section class="usac-panel" data-step="1">
-              <label>País(es) destino</label>
-              <select id="usac-countries" multiple style="width:100%"></select>
-
-              <div class="usac-columns">
-                <div>
-                  <label>Marca</label>
-                  <select id="usac-brand" style="width:100%"></select>
+    public function render_form() {
+        ob_start();
+        ?>
+        <div id="usaalo-quote-form">
+            <h2><?php _e('Cotiza tu SIM/eSIM Internacional', 'usaalo'); ?></h2>
+            <form id="usaalo-quote">
+                <!-- Paso 1: País -->
+                <div class="step" id="step-1">
+                    <label for="country"><?php _e('Selecciona tu país de destino', 'usaalo'); ?></label>
+                    <select id="country" name="country" required>
+                        <!-- Opciones de países cargadas dinámicamente -->
+                    </select>
                 </div>
-                <div>
-                  <label>Modelo</label>
-                  <select id="usac-model" style="width:100%"></select>
+
+                <!-- Paso 2: Tipo de SIM -->
+                <div class="step" id="step-2" style="display:none;">
+                    <label for="sim_type"><?php _e('Selecciona el tipo de SIM', 'usaalo'); ?></label>
+                    <select id="sim_type" name="sim_type" required>
+                        <option value="physical"><?php _e('SIM Física', 'usaalo'); ?></option>
+                        <option value="esim"><?php _e('eSIM', 'usaalo'); ?></option>
+                    </select>
                 </div>
-              </div>
-              <div id="usac-compat-state" class="usac-note"></div>
-              <div class="usac-actions">
-                <button class="button button-primary usac-next" data-next="2" disabled>Continuar</button>
-              </div>
-            </section>
 
-            <!-- Paso 2 -->
-            <section class="usac-panel" data-step="2" hidden>
-              <label>Tipo de SIM</label>
-              <div class="usac-row">
-                <label><input type="radio" name="usac-simtype" value="esim"> eSIM (virtual)</label>
-                <label><input type="radio" name="usac-simtype" value="physical"> SIM física</label>
-              </div>
-
-              <div id="usac-esim-fields" class="usac-box" hidden>
-                <input type="text" id="usac-eid" placeholder="EID">
-                <input type="text" id="usac-imei-esim" placeholder="IMEI (opcional)">
-                <small>¿Dónde encuentro mi EID? (guía)</small>
-              </div>
-
-              <div id="usac-physical-fields" class="usac-box" hidden>
-                <input type="text" id="usac-imei-phy" placeholder="IMEI (obligatorio)">
-                <small>La SIM física se envía a domicilio y tiene costo de envío.</small>
-              </div>
-
-              <fieldset class="usac-box">
-                <legend>Servicios</legend>
-                <label><input type="checkbox" id="svc-data" checked disabled> Datos</label>
-                <label><input type="checkbox" id="svc-voice"> Voz</label>
-                <label><input type="checkbox" id="svc-sms"> SMS</label>
-                <div id="usac-inbound-col" hidden>
-                  <label>¿Llamadas entrantes desde Colombia?
-                    <select id="usac-inbound-colombia"><option value="no">No</option><option value="yes">Sí</option></select>
-                  </label>
+                <!-- Paso 3: Servicios adicionales -->
+                <div class="step" id="step-3" style="display:none;">
+                    <label for="services"><?php _e('Selecciona servicios adicionales', 'usaalo'); ?></label>
+                    <select id="services" name="services[]" multiple>
+                        <!-- Opciones de servicios cargadas dinámicamente -->
+                    </select>
                 </div>
-              </fieldset>
-              <div class="usac-actions">
-                <button class="button usac-prev" data-prev="1">Atrás</button>
-                <button class="button button-primary usac-next" data-next="3" disabled>Siguiente</button>
-              </div>
-            </section>
 
-            <!-- Paso 3 -->
-            <section class="usac-panel" data-step="3" hidden>
-              <div class="usac-columns">
-                <label>Fecha inicio <input type="date" id="usac-start"></label>
-                <label>Días <input type="number" id="usac-days" min="1" value="7"></label>
-                <label>Fecha fin <input type="date" id="usac-end"></label>
-              </div>
-              <div id="usac-activation" class="usac-note"></div>
+                <!-- Paso 4: Fechas -->
+                <div class="step" id="step-4" style="display:none;">
+                    <label for="start_date"><?php _e('Fecha de inicio', 'usaalo'); ?></label>
+                    <input type="date" id="start_date" name="start_date" required>
 
-              <div id="usac-quote" class="usac-total"></div>
+                    <label for="end_date"><?php _e('Fecha de finalización', 'usaalo'); ?></label>
+                    <input type="date" id="end_date" name="end_date" required>
+                </div>
 
-              <div class="usac-actions">
-                <button class="button usac-prev" data-prev="2">Atrás</button>
-                <button class="button button-primary usac-next" data-next="4" disabled>Siguiente</button>
-              </div>
-            </section>
+                <!-- Paso 5: Marca y Modelo -->
+                <div class="step" id="step-5" style="display:none;">
+                    <label for="brand"><?php _e('Selecciona la marca de tu dispositivo', 'usaalo'); ?></label>
+                    <select id="brand" name="brand" required>
+                        <!-- Opciones de marcas cargadas dinámicamente -->
+                    </select>
 
-            <!-- Paso 4 -->
-            <section class="usac-panel" data-step="4" hidden>
-              <h3>Resumen</h3>
-              <div id="usac-summary"></div>
-              <div class="usac-actions">
-                <button class="button usac-prev" data-prev="3">Editar</button>
-                <button class="button button-primary" id="usac-to-cart">Confirmar y continuar al pago</button>
-              </div>
-            </section>
-          </div>
+                    <label for="model"><?php _e('Selecciona el modelo de tu dispositivo', 'usaalo'); ?></label>
+                    <select id="model" name="model" required>
+                        <!-- Opciones de modelos cargadas dinámicamente -->
+                    </select>
+                </div>
+
+                <!-- Paso 6: Resumen y Precio -->
+                <div class="step" id="step-6" style="display:none;">
+                    <h3><?php _e('Resumen de tu cotización', 'usaalo'); ?></h3>
+                    <p id="quote-summary"></p>
+                    <p id="quote-price"></p>
+                    <button type="submit"><?php _e('Confirmar y Comprar', 'usaalo'); ?></button>
+                </div>
+
+                <div id="quote-error" style="display:none;">
+                    <p><?php _e('Por favor, completa todos los campos correctamente.', 'usaalo'); ?></p>
+                </div>
+            </form>
         </div>
         <?php
         return ob_get_clean();
     }
+
+    public function ajax_calculate_price() {
+        check_ajax_referer('usaalo_frontend_nonce', 'nonce');
+
+        // Validar y sanitizar datos
+        $country = sanitize_text_field($_POST['country']);
+        $sim_type = sanitize_text_field($_POST['sim_type']);
+        $services = array_map('sanitize_text_field', $_POST['services']);
+        $start_date = sanitize_text_field($_POST['start_date']);
+        $end_date = sanitize_text_field($_POST['end_date']);
+        $brand = sanitize_text_field($_POST['brand']);
+        $model = sanitize_text_field($_POST['model']);
+
+        // Lógica para calcular el precio
+        $base_price = 10; // Precio base por defecto
+        $service_price = count($services) * 2; // $2 por cada servicio adicional
+        $duration = (strtotime($end_date) - strtotime($start_date)) / (60 * 60 * 24); // Duración en días
+        $total_price = $base_price + $service_price + ($duration * 0.5); // $0.5 por cada día adicional
+
+        // Preparar respuesta
+        $response = [
+            'success' => true,
+            'data' => [
+                'summary' => sprintf(__('País: %s, Tipo de SIM: %s, Servicios: %s, Fechas: %s a %s, Marca: %s, Modelo: %s', 'usaalo'),
+                    $country, $sim_type, implode(', ', $services), $start_date, $end_date, $brand, $model),
+                'price' => sprintf(__('Precio total: $%s', 'usaalo'), number_format($total_price, 2)),
+            ]
+        ];
+
+        wp_send_json($response);
+    }
 }
+
+// Inicializar
+new USAALO_Frontend();
