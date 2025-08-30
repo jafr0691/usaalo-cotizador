@@ -1,0 +1,75 @@
+/* Contenedor principal */
+#usaalo-quote-form {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    background-color: #fff;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+/* Pasos */
+.step {
+    display: none;
+    margin-bottom: 16px;
+}
+
+.step.active {
+    display: block;
+}
+
+/* Etiquetas y campos */
+#usaalo-quote label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #374151;
+}
+
+#usaalo-quote input[type="text"],
+#usaalo-quote input[type="number"],
+#usaalo-quote input[type="date"],
+#usaalo-quote select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+/* Botones */
+#usaalo-quote button {
+    background-color: #111827;
+    color: #fff;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#usaalo-quote button:hover {
+    background-color: #374151;
+}
+
+/* Resumen y precio */
+#quote-summary, #quote-price {
+    margin-top: 12px;
+    font-size: 16px;
+}
+
+/* Error */
+#quote-error {
+    color: red;
+    font-weight: 600;
+    margin-top: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #usaalo-quote-form {
+        padding: 12px;
+    }
+}

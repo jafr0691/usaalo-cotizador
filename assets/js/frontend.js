@@ -1,86 +1,115 @@
 jQuery(document).ready(function($){
-    // Inicializar Select2
-    $('#wizard-country, #wizard-brand, #wizard-model').select2();
 
-    let currentStep = 1;
-    const totalSteps = 4;
+    // Inicializar select2
+    $('#country, #services, #brand, #model').select2({
+        width: '100%'
+    });
 
+    // Control de pasos
+    var currentStep = 1;
     function showStep(step){
-        $('.usaalo-step-panel').hide();
-        $(`.usaalo-step-panel[data-step="${step}"]`).show();
+        $('.step').removeClass('active');
+        $('#step-' + step).addClass('active');
+        currentStep = step;
     }
 
-    function updateSummary(){
-        let countries = $('#wizard-country').val() || [];
-        let simType = $('#wizard-sim-type').val();
-        let brand = $('#wizard-brand option:selected').text();
-        let model = $('#wizard-model option:selected').text();
-        let startDate = $('#wizard-start-date').val();
-        let endDate = $('#wizard-end-date').val();
-        $('#wizard-summary').html(`
-            <p><strong>País(es):</strong> ${countries.join(', ')}</p>
-            <p><strong>Tipo de SIM:</strong> ${simType}</p>
-            <p><strong>Marca/Modelo:</strong> ${brand} / ${model}</p>
-            <p><strong>Duración:</strong> ${startDate} - ${endDate}</p>
-        `);
-    }
+    showStep(1); // Mostrar primer paso
 
-    $('.usaalo-next').on('click', function(){
-        if(currentStep < totalSteps){
-            currentStep++;
-            showStep(currentStep);
-            if(currentStep === 4) updateSummary();
+    // Función para avanzar al siguiente paso
+    function nextStep(){
+        if(currentStep < 6){
+            showStep(currentStep + 1);
         }
-    });
+    }
 
-    $('.usaalo-back').on('click', function(){
+    // Función para retroceder
+    function prevStep(){
         if(currentStep > 1){
-            currentStep--;
-            showStep(currentStep);
+            showStep(currentStep - 1);
+        }
+    }
+
+    // Validación simple antes de avanzar
+    function validateStep(step){
+        var valid = true;
+        $('#step-' + step + ' [required]').each(function(){
+            if($(this).val() === '' || $(this).val() === null){
+                valid = false;
+            }
+        });
+        return valid;
+    }
+
+    // Cambio de pasos al seleccionar país
+    $('#country').on('change', function(){
+        if(validateStep(1)){
+            nextStep();
+        } else {
+            alert('Por favor selecciona al menos un país');
         }
     });
 
-    // Cargar marcas y modelos vía AJAX
-    function loadBrands(){
-        $.post(UA_Cotizador.ajaxurl, {action:'usaalo_get_brands', nonce:UA_Cotizador.nonce}, function(resp){
-            if(resp.success){
-                $('#wizard-brand').html('');
-                resp.data.forEach(b => $('#wizard-brand').append(`<option value="${b.id}">${b.name}</option>`));
-                $('#wizard-brand').trigger('change');
-            }
-        });
-    }
-
-    function loadModels(brandId){
-        $.post(UA_Cotizador.ajaxurl, {action:'usaalo_get_models', brand:brandId, nonce:UA_Cotizador.nonce}, function(resp){
-            if(resp.success){
-                $('#wizard-model').html('');
-                resp.data.forEach(m => $('#wizard-model').append(`<option value="${m.id}">${m.name}</option>`));
-            }
-        });
-    }
-
-    $('#wizard-brand').on('change', function(){ loadModels($(this).val()); });
-
-    // Confirmar y crear producto / pasar a checkout
-    $('#wizard-confirm').on('click', function(){
-        let data = {
-            action:'usaalo_create_product',
-            nonce: UA_Cotizador.nonce,
-            countries: $('#wizard-country').val(),
-            sim_type: $('#wizard-sim-type').val(),
-            brand: $('#wizard-brand').val(),
-            model: $('#wizard-model').val(),
-            start_date: $('#wizard-start-date').val(),
-            end_date: $('#wizard-end-date').val()
-        };
-        $.post(UA_Cotizador.ajaxurl, data, function(resp){
-            if(resp.success){
-                window.location.href = resp.checkout_url;
-            } else alert(resp.data);
-        });
+    // Cambio de pasos al seleccionar SIM
+    $('#sim_type').on('change', function(){
+        if(validateStep(2)){
+            nextStep();
+        }
     });
 
-    // Inicializar marcas
-    loadBrands();
+    // Cambio de pasos al seleccionar servicios
+    $('#services').on('change', function(){
+        nextStep();
+    });
+
+    // Cambio de pasos al seleccionar fechas
+    $('#end_date').on('change', function(){
+        var start = $('#start_date').val();
+        var end = $('#end_date').val();
+        if(start && end && start <= end){
+            nextStep();
+        } else {
+            alert('La fecha de fin debe ser igual o posterior a la fecha de inicio');
+        }
+    });
+
+    // Cambio de pasos al seleccionar marca y modelo
+    $('#model').on('change', function(){
+        if(validateStep(5)){
+            nextStep();
+            calculateQuote();
+        }
+    });
+
+    // Función para calcular el precio mediante AJAX
+    function calculateQuote(){
+        var data = {
+            action: 'usaalo_calculate_price',
+            nonce: USAALO_Frontend.nonce,
+            country: $('#country').val(),
+            sim_type: $('#sim_type').val(),
+            services: $('#services').val(),
+            start_date: $('#start_date').val(),
+            end_date: $('#end_date').val(),
+            brand: $('#brand').val(),
+            model: $('#model').val()
+        };
+        $.post(USAALO_Frontend.ajaxurl, data, function(resp){
+            if(resp.success){
+                $('#quote-summary').html(resp.data.summary);
+                $('#quote-price').html(resp.data.price);
+            } else {
+                $('#quote-error').show().text('No se pudo calcular el precio. Intenta nuevamente.');
+            }
+        });
+    }
+
+    // Enviar cotización al checkout
+    $('#usaalo-quote').on('submit', function(e){
+        e.preventDefault();
+        calculateQuote();
+        alert('Tu cotización ha sido confirmada, ahora puedes continuar al pago');
+        // Aquí puedes redirigir a WooCommerce Checkout si deseas
+        // window.location.href = '/checkout';
+    });
+
 });
