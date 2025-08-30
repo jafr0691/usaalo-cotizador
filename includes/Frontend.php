@@ -1,91 +1,108 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Frontend.php
+ * Shortcode and frontend handlers
+ * - Shortcode [usaalo_cotizador]
+ * - Enqueue assets and localize
+ * - AJAX price calculation uses USAALO_Helpers::calculate_price
+ */
+
 class USAALO_Frontend {
 
     public function __construct() {
-        add_shortcode('usaalo_cotizador', [$this, 'render_form']);
+        add_shortcode('usaalo_cotizador', [$this, 'shortcode_render']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
+
         add_action('wp_ajax_usaalo_calculate_price', [$this, 'ajax_calculate_price']);
         add_action('wp_ajax_nopriv_usaalo_calculate_price', [$this, 'ajax_calculate_price']);
     }
 
     public function enqueue_assets() {
-        wp_enqueue_style('usaalo-select2', plugin_dir_url(__FILE__) . '../assets/lib/select2.min.css', [], '4.0.13');
-        wp_enqueue_style('usaalo-frontend', plugin_dir_url(__FILE__) . '../assets/css/frontend.css', [], '1.0');
+        $base = plugin_dir_url(dirname(__FILE__)) . 'assets/';
+        wp_enqueue_style('usaalo-select2', $base . 'lib/select2.min.css', [], '4.1.0');
+        wp_enqueue_style('usaalo-frontend', $base . 'css/frontend.css', [], USAALO_VERSION);
 
-        wp_enqueue_script('usaalo-select2', plugin_dir_url(__FILE__) . '../assets/lib/select2.min.js', ['jquery'], '4.0.13', true);
-        wp_enqueue_script('usaalo-frontend', plugin_dir_url(__FILE__) . '../assets/js/frontend.js', ['jquery', 'usaalo-select2'], '1.0', true);
+        wp_enqueue_script('usaalo-select2', $base . 'lib/select2.min.js', ['jquery'], '4.1.0', true);
+        wp_enqueue_script('usaalo-frontend', $base . 'js/frontend.js', ['jquery','usaalo-select2'], USAALO_VERSION, true);
 
         wp_localize_script('usaalo-frontend', 'USAALO_Frontend', [
             'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce'   => wp_create_nonce('usaalo_frontend_nonce'),
+            'nonce' => wp_create_nonce('usaalo_frontend_nonce'),
+            'i18n' => [
+                'select_country' => __('Selecciona un país', 'usaalo-cotizador'),
+                'error' => __('Ocurrió un error', 'usaalo-cotizador'),
+            ],
         ]);
     }
 
-    public function render_form() {
+    public function shortcode_render($atts = []) {
+        // Load necessary data
+        $countries = USAALO_Helpers::get_countries();
+        $brands = USAALO_Helpers::get_brands();
+
         ob_start();
         ?>
-        <div id="usaalo-quote-form">
-            <h2><?php _e('Cotiza tu SIM/eSIM Internacional', 'usaalo'); ?></h2>
-            <form id="usaalo-quote">
-                <!-- Paso 1: País -->
-                <div class="step" id="step-1">
-                    <label for="country"><?php _e('Selecciona tu país de destino', 'usaalo'); ?></label>
-                    <select id="country" name="country" required>
-                        <!-- Opciones de países cargadas dinámicamente -->
+        <div id="usaalo-cotizador-wizard" class="usaalo-wizard">
+            <form id="usaalo-quote" autocomplete="off">
+                <!-- Step 1: Countries -->
+                <div class="step active" id="step-1">
+                    <label><?php _e('País(es)', 'usaalo-cotizador'); ?></label>
+                    <select id="country" name="country[]" multiple style="width:100%">
+                        <?php foreach($countries as $c): ?>
+                            <option value="<?php echo esc_attr($c['code2'] ?? $c['code']); ?>"><?php echo esc_html($c['name']); ?></option>
+                        <?php endforeach; ?>
                     </select>
+                    <p><button type="button" class="usaalo-next"><?php _e('Siguiente', 'usaalo-cotizador'); ?></button></p>
                 </div>
 
-                <!-- Paso 2: Tipo de SIM -->
-                <div class="step" id="step-2" style="display:none;">
-                    <label for="sim_type"><?php _e('Selecciona el tipo de SIM', 'usaalo'); ?></label>
-                    <select id="sim_type" name="sim_type" required>
-                        <option value="physical"><?php _e('SIM Física', 'usaalo'); ?></option>
-                        <option value="esim"><?php _e('eSIM', 'usaalo'); ?></option>
+                <!-- Step 2: SIM type & services -->
+                <div class="step" id="step-2">
+                    <label><?php _e('Tipo de SIM', 'usaalo-cotizador'); ?></label>
+                    <select id="sim_type" name="sim_type">
+                        <option value="esim"><?php _e('eSIM (virtual)', 'usaalo-cotizador'); ?></option>
+                        <option value="physical"><?php _e('SIM física', 'usaalo-cotizador'); ?></option>
                     </select>
+
+                    <label><?php _e('Servicios', 'usaalo-cotizador'); ?></label>
+                    <select id="services" name="services[]" multiple style="width:100%"></select>
+
+                    <p><button type="button" class="usaalo-back"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
+                    <button type="button" class="usaalo-next"><?php _e('Siguiente', 'usaalo-cotizador'); ?></button></p>
                 </div>
 
-                <!-- Paso 3: Servicios adicionales -->
-                <div class="step" id="step-3" style="display:none;">
-                    <label for="services"><?php _e('Selecciona servicios adicionales', 'usaalo'); ?></label>
-                    <select id="services" name="services[]" multiple>
-                        <!-- Opciones de servicios cargadas dinámicamente -->
-                    </select>
-                </div>
-
-                <!-- Paso 4: Fechas -->
-                <div class="step" id="step-4" style="display:none;">
-                    <label for="start_date"><?php _e('Fecha de inicio', 'usaalo'); ?></label>
+                <!-- Step 3: Dates & device -->
+                <div class="step" id="step-3">
+                    <label><?php _e('Fecha inicio', 'usaalo-cotizador'); ?></label>
                     <input type="date" id="start_date" name="start_date" required>
 
-                    <label for="end_date"><?php _e('Fecha de finalización', 'usaalo'); ?></label>
+                    <label><?php _e('Fecha fin', 'usaalo-cotizador'); ?></label>
                     <input type="date" id="end_date" name="end_date" required>
-                </div>
 
-                <!-- Paso 5: Marca y Modelo -->
-                <div class="step" id="step-5" style="display:none;">
-                    <label for="brand"><?php _e('Selecciona la marca de tu dispositivo', 'usaalo'); ?></label>
-                    <select id="brand" name="brand" required>
-                        <!-- Opciones de marcas cargadas dinámicamente -->
+                    <label><?php _e('Marca', 'usaalo-cotizador'); ?></label>
+                    <select id="brand" name="brand" style="width:100%">
+                        <option value=""><?php _e('Selecciona marca','usaalo-cotizador');?></option>
+                        <?php foreach($brands as $b): ?>
+                            <option value="<?php echo intval($b['id']); ?>"><?php echo esc_html($b['name']); ?></option>
+                        <?php endforeach; ?>
                     </select>
 
-                    <label for="model"><?php _e('Selecciona el modelo de tu dispositivo', 'usaalo'); ?></label>
-                    <select id="model" name="model" required>
-                        <!-- Opciones de modelos cargadas dinámicamente -->
-                    </select>
+                    <label><?php _e('Modelo', 'usaalo-cotizador'); ?></label>
+                    <select id="model" name="model" style="width:100%"></select>
+
+                    <p><button type="button" class="usaalo-back"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
+                    <button type="button" class="usaalo-next"><?php _e('Siguiente', 'usaalo-cotizador'); ?></button></p>
                 </div>
 
-                <!-- Paso 6: Resumen y Precio -->
-                <div class="step" id="step-6" style="display:none;">
-                    <h3><?php _e('Resumen de tu cotización', 'usaalo'); ?></h3>
-                    <p id="quote-summary"></p>
-                    <p id="quote-price"></p>
-                    <button type="submit"><?php _e('Confirmar y Comprar', 'usaalo'); ?></button>
-                </div>
+                <!-- Step 4: Summary -->
+                <div class="step" id="step-4">
+                    <h3><?php _e('Resumen', 'usaalo-cotizador'); ?></h3>
+                    <div id="usaalo-summary"></div>
+                    <div id="usaalo-price"></div>
 
-                <div id="quote-error" style="display:none;">
-                    <p><?php _e('Por favor, completa todos los campos correctamente.', 'usaalo'); ?></p>
+                    <p><button type="button" class="usaalo-back"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
+                    <button type="submit" class="button button-primary"><?php _e('Confirmar y continuar al pago', 'usaalo-cotizador'); ?></button></p>
                 </div>
             </form>
         </div>
@@ -96,34 +113,26 @@ class USAALO_Frontend {
     public function ajax_calculate_price() {
         check_ajax_referer('usaalo_frontend_nonce', 'nonce');
 
-        // Validar y sanitizar datos
-        $country = sanitize_text_field($_POST['country']);
-        $sim_type = sanitize_text_field($_POST['sim_type']);
-        $services = array_map('sanitize_text_field', $_POST['services']);
-        $start_date = sanitize_text_field($_POST['start_date']);
-        $end_date = sanitize_text_field($_POST['end_date']);
-        $brand = sanitize_text_field($_POST['brand']);
-        $model = sanitize_text_field($_POST['model']);
+        $countries = isset($_POST['country']) ? (array) $_POST['country'] : [];
+        $sim_type = isset($_POST['sim_type']) ? sanitize_text_field($_POST['sim_type']) : 'esim';
+        $services = isset($_POST['services']) ? (array) $_POST['services'] : [];
+        $start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : '';
+        $end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : '';
+        $brand = isset($_POST['brand']) ? intval($_POST['brand']) : null;
+        $model = isset($_POST['model']) ? intval($_POST['model']) : null;
 
-        // Lógica para calcular el precio
-        $base_price = 10; // Precio base por defecto
-        $service_price = count($services) * 2; // $2 por cada servicio adicional
-        $duration = (strtotime($end_date) - strtotime($start_date)) / (60 * 60 * 24); // Duración en días
-        $total_price = $base_price + $service_price + ($duration * 0.5); // $0.5 por cada día adicional
-
-        // Preparar respuesta
-        $response = [
-            'success' => true,
-            'data' => [
-                'summary' => sprintf(__('País: %s, Tipo de SIM: %s, Servicios: %s, Fechas: %s a %s, Marca: %s, Modelo: %s', 'usaalo'),
-                    $country, $sim_type, implode(', ', $services), $start_date, $end_date, $brand, $model),
-                'price' => sprintf(__('Precio total: $%s', 'usaalo'), number_format($total_price, 2)),
-            ]
-        ];
-
-        wp_send_json($response);
+        $res = USAALO_Helpers::calculate_price($countries, $sim_type, $services, $start_date, $end_date, $brand, $model);
+        if (!$res['success']) {
+            return wp_send_json_error(['errors' => $res['errors']]);
+        }
+        return wp_send_json_success([
+            'breakdown' => $res['breakdown'],
+            'total' => $res['total'],
+            'days' => $res['days'],
+            'compatibility' => $res['compatibility'],
+        ]);
     }
 }
 
-// Inicializar
+// initialize
 new USAALO_Frontend();
