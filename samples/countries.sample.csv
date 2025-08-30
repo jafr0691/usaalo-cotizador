@@ -1,0 +1,7 @@
+code2,name,region,status,supports_voice_sms
+US,Estados Unidos,Norteamérica,enabled,1
+MX,México,Norteamérica,enabled,1
+CA,Canadá,Norteamérica,enabled,1
+ES,España,Europa,enabled,0
+BR,Brasil,Sudamérica,enabled,0
+AR,Argentina,Sudamérica,coming_soon,0
