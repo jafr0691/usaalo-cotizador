@@ -4,35 +4,19 @@ if (!defined('ABSPATH')) exit;
 /**
  * includes/helpers.php
  * Funciones helper comunes para Usaalo Cotizador
- *
- * - Consultas a tablas: countries, brands, models, plans, pricing_rules, device_country
- * - Cálculo de días (inclusive)
- * - Lógica de cálculo de precio reutilizable
- * - Comprobación de compatibilidad dispositivo <-> país
- * - Helpers para opciones del plugin
- * - Helper para crear producto variable en WC (con opción de guardar price_per_day en meta)
- *
- * Notas:
- * - Todas las consultas usan $wpdb->prepare cuando es necesario.
- * - Para creación de productos en WooCommerce se comprueba que WC esté activo.
+ * 
+ * Mejoras:
+ * - Modular y eficiente
+ * - Compatible con WooCommerce
+ * - Maneja compatibilidad de países, SIM y servicios
  */
 
 class USAALO_Helpers {
 
-    /**
-     * Obtener instancia del DB global.
-     * @return wpdb
-     */
-    protected static function db() {
-        global $wpdb;
-        return $wpdb;
-    }
-
     /* -----------------------------
-     * Opciones del plugin
+     * Configuración del plugin
      * ----------------------------- */
-
-    public static function get_settings() : array {
+    public static function get_settings(): array {
         $defaults = [
             'color_primary' => '#111827',
             'color_button' => '#111827',
@@ -40,356 +24,1068 @@ class USAALO_Helpers {
             'text_back' => __('Atrás', 'usaalo-cotizador'),
         ];
         $opts = get_option('usaalo_cotizador_settings', []);
-        if (!is_array($opts)) $opts = [];
-        return wp_parse_args($opts, $defaults);
+        return wp_parse_args(is_array($opts) ? $opts : [], $defaults);
     }
 
-    public static function update_settings(array $data) : bool {
+    public static function update_settings(array $data): bool {
         return update_option('usaalo_cotizador_settings', $data);
     }
 
-    /* -----------------------------
-     * Consultas básicas
-     * ----------------------------- */
-
-    public static function get_countries() : array {
-        $wpdb = self::db();
-        return $wpdb->get_results("SELECT code AS code2, name, region, status, supports_voice_sms FROM {$wpdb->prefix}usaalo_countries ORDER BY name ASC", ARRAY_A) ?: [];
+    // Conexión a la base de datos
+    public static function db() {
+        global $wpdb;
+        return $wpdb;
     }
 
-    public static function get_country(string $code) : ?array {
+    /* ------------------------------ Countrys ------------------------------ */
+
+    // Obtener todos los países
+    public static function get_countries(): array {
         $wpdb = self::db();
-        return $wpdb->get_row($wpdb->prepare("SELECT code AS code2, name, region, status, supports_voice_sms FROM {$wpdb->prefix}usaalo_countries WHERE code = %s LIMIT 1", $code), ARRAY_A) ?: null;
+        $table = $wpdb->prefix . 'usaalo_countries';
+        return $wpdb->get_results("SELECT id, code, name, region FROM $table ORDER BY name ASC", ARRAY_A);
     }
 
-    public static function get_brands() : array {
+
+    // Obtener el países
+    public static function usaalo_get_countries($id): array {
         $wpdb = self::db();
-        return $wpdb->get_results("SELECT id, name, slug FROM {$wpdb->prefix}usaalo_brands ORDER BY name ASC", ARRAY_A) ?: [];
+        $table = $wpdb->prefix . 'usaalo_countries';
+        return $wpdb->get_results("SELECT id, code, name, region FROM $table ORDER BY name ASC WHERE id = %d", $id, ARRAY_A);
     }
 
-    public static function get_models_by_brand(int $brand_id) : array {
+    // Obtener un país por código
+    public static function usaalo_get_country($id) {
         $wpdb = self::db();
-        return $wpdb->get_results($wpdb->prepare("SELECT id, brand_id, name, slug FROM {$wpdb->prefix}usaalo_models WHERE brand_id = %d ORDER BY name ASC", $brand_id), ARRAY_A) ?: [];
+        $table = $wpdb->prefix . 'usaalo_countries';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %s", $id), ARRAY_A);
     }
 
-    public static function get_model(int $model_id) : ?array {
-        $wpdb = self::db();
-        return $wpdb->get_row($wpdb->prepare("SELECT id, brand_id, name, slug FROM {$wpdb->prefix}usaalo_models WHERE id = %d LIMIT 1", $model_id), ARRAY_A) ?: null;
-    }
+    // Guardar o actualizar un país
+    public static function usaalo_save_country($data) {
+        $wpdb  = self::db();
+        $table = $wpdb->prefix . 'usaalo_countries';
 
-    public static function get_plans() : array {
-        $wpdb = self::db();
-        return $wpdb->get_results("SELECT * FROM {$wpdb->prefix}usaalo_plans ORDER BY name ASC", ARRAY_A) ?: [];
-    }
-
-    public static function get_plan(int $plan_id) : ?array {
-        $wpdb = self::db();
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_plans WHERE id = %d LIMIT 1", $plan_id), ARRAY_A) ?: null;
-    }
-
-    public static function get_pricing_rules(int $plan_id, ?string $sim_type = null) : array {
-        $wpdb = self::db();
-        $sql = $wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_pricing_rules WHERE plan_id = %d AND active = 1", $plan_id);
-        if ($sim_type) {
-            $sql = $wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_pricing_rules WHERE plan_id = %d AND sim_type = %s AND active = 1 ORDER BY min_days ASC", $plan_id, $sim_type);
-            return $wpdb->get_results($sql, ARRAY_A) ?: [];
+        // Si viene un ID -> actualizar
+        if (!empty($data['id'])) {
+            $id = intval($data['id']);
+            $fields = [
+                'code'   => isset($data['code']) ? sanitize_text_field($data['code']) : '',
+                'name'   => isset($data['name']) ? sanitize_text_field($data['name']) : '',
+                'region' => isset($data['region']) ? sanitize_text_field($data['region']) : '',
+            ];
+            return $wpdb->update($table, $fields, ['id' => $id]);
         }
-        return $wpdb->get_results($sql . " ORDER BY min_days ASC", ARRAY_A) ?: [];
+
+        // Crear: separar name, code y region si vienen con comas
+        if (!empty($data['name']) && !empty($data['code'])) {
+            $names   = array_map('trim', explode(',', sanitize_text_field($data['name'])));
+            $codes   = array_map('trim', explode(',', sanitize_text_field($data['code'])));
+            $regions = !empty($data['region'])
+                ? array_map('trim', explode(',', sanitize_text_field($data['region'])))
+                : [];
+
+            $insert_ids = [];
+            foreach ($names as $i => $name) {
+                if ($name === '') continue;
+
+                $nameFormatted = ucfirst(strtolower($name));
+                $code         = isset($codes[$i]) ? strtoupper($codes[$i]) : strtoupper(substr($nameFormatted, 0, 3));
+                $region       = isset($regions[$i]) ? $regions[$i] : ($regions[0] ?? '');
+
+                // Validar duplicados (por nombre o code)
+                $exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table WHERE name = %s OR code = %s",
+                    $nameFormatted, $code
+                ));
+                if ($exists) continue;
+
+                $insert_data = [
+                    'code'   => $code,
+                    'name'   => $nameFormatted,
+                    'region' => $region,
+                ];
+
+                $wpdb->insert($table, $insert_data);
+                $insert_ids[] = $wpdb->insert_id;
+            }
+
+            return $insert_ids;
+        }
+
+        return false;
     }
 
-    /**
-     * Obtener compatibilidad del modelo con el país
-     * @param int $model_id
-     * @param string $country_code
-     * @return array|null ['esim_supported'=>0/1,'voice_supported'=>0/1,'sms_supported'=>0/1,'data_supported'=>0/1] o null si no hay fila
-     */
-    public static function get_device_country_compat(int $model_id, string $country_code) : ?array {
+    // Eliminar un país
+    public static function usaalo_delete_country($id) {
         $wpdb = self::db();
-        return $wpdb->get_row($wpdb->prepare("SELECT esim_supported, voice_supported, sms_supported, data_supported FROM {$wpdb->prefix}usaalo_device_country WHERE model_id = %d AND country_code = %s LIMIT 1", $model_id, $country_code), ARRAY_A) ?: null;
+        $table = $wpdb->prefix . 'usaalo_countries';
+        return $wpdb->delete($table, ['id' => $id]);
     }
 
-    /* -----------------------------
-     * Utilidades de fechas/días
-     * ----------------------------- */
 
-    /**
-     * Calcular días entre dos fechas (inclusive por defecto)
-     * @param string $start Y-m-d
-     * @param string $end Y-m-d
-     * @param bool $inclusive default true
-     * @return int número de días >= 1
-     */
-    public static function days_between(string $start, string $end, bool $inclusive = true) : int {
-        $start_ts = strtotime($start);
-        $end_ts = strtotime($end);
-        if ($start_ts === false || $end_ts === false) return 0;
-        $diff = max(0, floor(($end_ts - $start_ts) / DAY_IN_SECONDS));
-        return $inclusive ? max(1, $diff + 1) : max(0, $diff);
-    }
 
-    /* -----------------------------
-     * Cálculo de precio (reutilizable)
-     * ----------------------------- */
 
-    /**
-     * calculate_price
-     * @param array $countries array of country codes (strings)
-     * @param string $sim_type 'esim'|'physical'
-     * @param array $services e.g. ['data','voice','sms']
-     * @param string $start_date 'YYYY-MM-DD'
-     * @param string $end_date 'YYYY-MM-DD'
-     * @param int|null $brand optional
-     * @param int|null $model optional
-     * @return array [ 'success'=>bool, 'total'=>float, 'days'=>int, 'breakdown'=>array, 'compatibility'=>string, 'errors'=>array ]
-     */
-    public static function calculate_price(array $countries, string $sim_type, array $services, string $start_date, string $end_date, ?int $brand = null, ?int $model = null) : array {
+
+
+
+
+
+/* ------------------------------ Brands ------------------------------ */
+
+// Obtener marcas disponibles
+    public static function get_brands(): array {
         $wpdb = self::db();
-        $result = [
-            'success' => false,
-            'total' => 0.0,
-            'days' => 0,
-            'breakdown' => [],
-            'compatibility' => 'unknown',
-            'errors' => []
+        $table = $wpdb->prefix . 'usaalo_brands';
+        return $wpdb->get_results("SELECT id, name, slug FROM $table ORDER BY name ASC", ARRAY_A);
+    }
+// Obtener una marca por ID
+    public static function usaalo_get_brand($brand_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_brands';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $brand_id), ARRAY_A);
+    }
+
+    // Guardar o actualizar una marca
+    public static function usaalo_save_brand($data) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_brands';
+
+        // Si viene un ID, actualizamos
+        if (!empty($data['id'])) {
+            $id = intval($data['id']);
+            $update_data = $data;
+            unset($update_data['id']); // eliminar id del array de datos para update
+
+            // Formatear name y slug
+            if (!empty($update_data['name'])) {
+                $nameFormatted = ucfirst(strtolower(trim($update_data['name'])));
+                $update_data['name'] = $nameFormatted;
+                $update_data['slug'] = strtolower(trim($update_data['name']));
+            }
+
+            return $wpdb->update($table, $update_data, ['id' => $id]);
+        }
+
+        // Crear: si viene name con comas, separar e insertar cada uno
+        if (!empty($data['name'])) {
+            $names = array_map('trim', explode(',', $data['name'])); // separar y limpiar espacios
+            $insert_ids = [];
+
+            foreach ($names as $name) {
+                if ($name === '') continue; // ignorar cadenas vacías
+                $nameFormatted = ucfirst(strtolower($name));
+                $slug = strtolower($name);
+
+                // Verificar si ya existe la marca
+                $exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table WHERE name = %s",
+                    $nameFormatted
+                ));
+
+                if ($exists) continue; // si ya existe, no insertar
+
+                $insert_data = [
+                    'name' => $nameFormatted,
+                    'slug' => $slug,
+                ];
+
+                $wpdb->insert($table, $insert_data);
+                $insert_ids[] = $wpdb->insert_id;
+            }
+
+            return $insert_ids; // retorna array con los IDs insertados
+        }
+
+        return false; // si no hay nombre, no hacer nada
+    }
+
+
+    // Eliminar una marca
+    public static function usaalo_delete_brand($brand_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_brands';
+        return $wpdb->delete($table, ['id' => intval($brand_id)]);
+    }
+
+
+
+    
+
+
+
+    
+
+    /* ------------------------------ Models ------------------------------ */
+
+    // Obtener modelos por marca y países
+    public static function get_models(int $brand_id = null, array $countries = []): array {
+        $wpdb = self::db();
+        $table_models = $wpdb->prefix . 'usaalo_models';
+        $table_compat = $wpdb->prefix . 'usaalo_device_country';
+        $table_brands = $wpdb->prefix . 'usaalo_brands';
+
+        $where = [];
+        $params = [];
+
+        if ($brand_id) {
+            $where[] = "m.brand_id = %d";
+            $params[] = $brand_id;
+        }
+
+        if (!empty($countries)) {
+            $placeholders = implode(',', array_fill(0, count($countries), '%s'));
+            $where[] = "d.country_id IN ($placeholders)";
+            $params = array_merge($params, $countries);
+        }
+
+        $where_sql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $sql = "
+            SELECT DISTINCT m.id, m.name, m.slug, b.name AS brand_name,
+                d.country_id, d.esim_supported, d.voice_supported, d.sms_supported, d.data_supported
+            FROM $table_models m
+            LEFT JOIN $table_compat d ON m.id = d.model_id
+            LEFT JOIN $table_brands b ON m.brand_id = b.id
+            $where_sql
+            ORDER BY m.name ASC
+        ";
+
+        return $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A) ?: [];
+    }
+
+    // Obtener un modelo por ID
+    public static function usaalo_get_model($model_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_models';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $model_id), ARRAY_A);
+    }
+    // Guardar o actualizar un modelo
+    public static function usaalo_save_model($data) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_models';
+        $config_table = $wpdb->prefix . 'usaalo_device_config';
+
+        // Actualizar modelo existente
+        if (!empty($data['id'])) {
+            $id = intval($data['id']);
+            $update_data = $data;
+            unset($update_data['id'], $update_data['nonce'], $update_data['action']);
+
+            // Formatear name y slug
+            if (!empty($update_data['name'])) {
+                $nameFormatted = ucfirst(strtolower(trim($update_data['name'])));
+                $update_data['name'] = $nameFormatted;
+                $update_data['slug'] = strtolower(trim($update_data['name']));
+            }
+
+            return $wpdb->update($table, $update_data, ['id' => $id]);
+        }
+
+        // Crear nuevos modelos si viene name con comas
+        if (!empty($data['name']) && !empty($data['brand_id'])) {
+            $names = array_map('trim', explode(',', $data['name']));
+            $insert_ids = [];
+            $brand_id = intval($data['brand_id']);
+
+            foreach ($names as $name) {
+                if ($name === '') continue;
+                $nameFormatted = ucfirst(strtolower($name));
+                $slug = strtolower($name);
+
+                // Verificar si ya existe el modelo para esa marca
+                $exists = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM $table WHERE name = %s AND brand_id = %d",
+                    $nameFormatted,
+                    $brand_id
+                ));
+
+                if ($exists) continue;
+
+                // Insertar modelo
+                $wpdb->insert($table, [
+                    'brand_id' => $brand_id,
+                    'name' => $nameFormatted,
+                    'slug' => $slug,
+                ]);
+
+                $model_id = $wpdb->insert_id;
+                $insert_ids[] = $model_id;
+
+                // Insertar configuración global inicial (solo al crear)
+                $wpdb->insert($config_table, [
+                    'model_id' => $model_id,
+                    'sim_supported' => 1,
+                    'esim_supported' => 1,
+                    'voice_supported' => 0,
+                    'sms_supported' => 0,
+                    'data_supported' => 1,
+                ]);
+            }
+
+            return $insert_ids;
+        }
+
+        return false;
+    }
+
+    // Eliminar un modelo
+    public static function usaalo_delete_model($model_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_models';
+        return $wpdb->delete($table, ['id' => intval($model_id)]);
+    }
+
+
+    public static function get_sim_servicios() {
+        $wpdb = self::db();
+
+        $table_device_country = $wpdb->prefix . 'usaalo_device_country';
+        $table_device_config  = $wpdb->prefix . 'usaalo_device_config';
+        $table_models         = $wpdb->prefix . 'usaalo_models';
+        $table_brands         = $wpdb->prefix . 'usaalo_brands';
+        $table_countries      = $wpdb->prefix . 'usaalo_countries';
+
+        // $country = sanitize_text_field($data['country'] ?? '');
+        // $brand   = sanitize_text_field($data['brand'] ?? '');
+        // $model   = sanitize_text_field($data['model'] ?? '');
+
+        // $where = [];
+        // if ($country) $where[] = $wpdb->prepare("c.name LIKE %s", "%$country%");
+        // if ($brand)   $where[] = $wpdb->prepare("b.name LIKE %s", "%$brand%");
+        // if ($model)   $where[] = $wpdb->prepare("m.name LIKE %s", "%$model%");
+
+
+        $sql = "
+            SELECT 
+                c.id AS country_id,
+                m.id AS model_id,
+                c.name AS country_name,
+                b.name AS brand_name,
+                m.name AS model_name,
+                COALESCE(dc.sim_supported, cfg.sim_supported, 1)   AS sim_supported,
+                COALESCE(dc.esim_supported, cfg.esim_supported, 1) AS esim_supported,
+                COALESCE(dc.voice_supported, cfg.voice_supported, 0) AS voice_supported,
+                COALESCE(dc.sms_supported, cfg.sms_supported, 0)    AS sms_supported,
+                COALESCE(dc.data_supported, cfg.data_supported, 1)  AS data_supported
+            FROM {$table_models} m
+            INNER JOIN {$table_brands} b ON b.id = m.brand_id
+            CROSS JOIN {$table_countries} c
+            LEFT JOIN {$table_device_config} cfg ON cfg.model_id = m.id
+            LEFT JOIN {$table_device_country} dc 
+                ON dc.model_id = m.id AND dc.country_id = c.id
+            ORDER BY c.name, b.name, m.name
+        ";
+
+        // $where_sql = $where ? "WHERE " . implode(" AND ", $where) : "";
+
+        $results = $wpdb->get_results($sql, ARRAY_A);
+
+        return $results;
+    }
+
+    public static function usaalo_update_service($data) {
+        $wpdb = self::db();
+
+        $table_device_config  = $wpdb->prefix . 'usaalo_device_config';
+        $table_device_country = $wpdb->prefix . 'usaalo_device_country';
+
+        $model_id   = intval($data['model_id']);
+        $country_id = intval($data['country_id']);
+        $field      = sanitize_key($data['field']);
+        $value      = intval($data['value']);
+
+        // Validar campo y IDs
+        $allowed_fields = ['sim_supported','esim_supported','voice_supported','sms_supported','data_supported'];
+        if (!in_array($field, $allowed_fields) || $model_id <= 0 || $country_id <= 0) return false;
+
+        // Valor global
+        $global_value = $wpdb->get_var($wpdb->prepare(
+            "SELECT $field FROM $table_device_config WHERE model_id = %d",
+            $model_id
+        ));
+
+        if ($global_value === null) {
+            // Crear registro global por defecto si no existe
+            $wpdb->insert($table_device_config, [
+                'model_id' => $model_id,
+                'sim_supported' => 1,
+                'esim_supported' => 1,
+                'voice_supported' => 0,
+                'sms_supported' => 0,
+                'data_supported' => 1
+            ]);
+            $global_value = 1;
+        }
+
+        // Si el valor nuevo == global → eliminar override
+        if ($value == $global_value) {
+            $wpdb->delete($table_device_country, [
+                'model_id' => $model_id,
+                'country_id' => $country_id
+            ], ['%d','%d']);
+            return true;
+        }
+
+        // Si difiere, insert/update
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $table_device_country WHERE model_id = %d AND country_id = %d",
+            $model_id, $country_id
+        ));
+
+        if ($exists) {
+            return $wpdb->update($table_device_country, [$field => $value], ['id' => $exists], ['%d'], ['%d']);
+        } else {
+            return $wpdb->insert($table_device_country, [
+                'model_id' => $model_id,
+                'country_id' => $country_id,
+                $field => $value
+            ], ['%d','%d','%d']);
+        }
+    }
+
+
+
+
+
+
+    /* ------------------------------ Planes producto ------------------------------ */
+    // Obtener un plan por ID
+    public static function usaalo_get_plan($plan_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_plans';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $plan_id), ARRAY_A);
+    }
+
+    // Guardar o actualizar un plan
+    public static function usaalo_save_plan($data) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_plans';
+        if (isset($data['id']) && $data['id']) {
+            return $wpdb->update($table, $data, ['id' => intval($data['id'])]);
+        } else {
+            $wpdb->insert($table, $data);
+            return $wpdb->insert_id;
+        }
+    }
+
+    // Eliminar un plan
+    public static function usaalo_delete_plan($plan_id) {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_plans';
+        return $wpdb->delete($table, ['id' => intval($plan_id)]);
+    }
+
+
+
+
+
+
+    /* ------------------------------ Elimina lo seleccionado en las tablas ------------------------------ */
+
+    // Delete bulk from table (dinámico con PK configurable)
+    public static function usaalo_bulk_delete($table, $idsall, $pk = 'id') {
+        $wpdb = self::db();
+
+        // Tablas permitidas
+        $allowed_tables = [
+            $wpdb->prefix . 'usaalo_countries',
+            $wpdb->prefix . 'usaalo_brands',
+            $wpdb->prefix . 'usaalo_models',
+            $wpdb->prefix . 'usaalo_device_country',
+            $wpdb->prefix . 'usaalo_product_country',
         ];
 
-        // Validaciones básicas
-        $countries = array_map('sanitize_text_field', $countries);
-        if (empty($countries)) {
-            $result['errors'][] = __('Debe seleccionar al menos un país.', 'usaalo-cotizador');
-            return $result;
-        }
-        $start_ts = strtotime($start_date);
-        $end_ts = strtotime($end_date);
-        if ($start_ts === false || $end_ts === false || $end_ts < $start_ts) {
-            $result['errors'][] = __('Rango de fechas inválido.', 'usaalo-cotizador');
-            return $result;
+        $table_name = $wpdb->prefix . $table;
+
+        if (!in_array($table_name, $allowed_tables, true)) {
+            wp_send_json_error(['message' => 'Tabla no permitida']);
         }
 
-        $days = self::days_between($start_date, $end_date, true);
-        $result['days'] = $days;
+        // Validar que la columna sea segura (solo letras, números y guion bajo)
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $pk)) {
+            wp_send_json_error(['message' => 'Columna PK no válida']);
+        }
 
-        $total_price = 0.0;
-        $breakdown = [];
+        // Normalizar IDs
+        $ids = array_map('intval', (array) $idsall);
 
-        foreach ($countries as $country_code) {
-            // Obtener plan vinculado al país
-            $plan_id = $wpdb->get_var($wpdb->prepare("SELECT plan_id FROM {$wpdb->prefix}usaalo_plan_country WHERE country_code = %s LIMIT 1", $country_code));
-            if (!$plan_id) {
-                $breakdown[] = ['country' => $country_code, 'error' => __('No hay plan vinculado a este país', 'usaalo-cotizador')];
-                continue;
+        if (empty($ids)) {
+            return false; // nada que eliminar
+        }
+
+        // Query dinámica
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $sql = "DELETE FROM $table_name WHERE $pk IN ($placeholders)";
+        $deleted = $wpdb->query($wpdb->prepare($sql, $ids));
+
+        return $deleted !== false ? $deleted : false;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /**
+ * Obtener precios por tipo de SIM (sim física y esim).
+ * - Lee opción 'usaalo_sim_prices' si existe (array con keys 'sim' y 'esim')
+ * - Si no existe, sim = coste de envío por defecto; esim = promedio de meta '_usaalo_servicio_precio_esim'
+ *
+ * @return array ['sim' => float, 'esim' => float]
+ */
+public static function get_sim_prices(): array {
+    // 1) Intentar leer opción (admin)
+    $opt = get_option('usaalo_sim_prices', false);
+    if (is_array($opt) && (isset($opt['sim']) || isset($opt['esim']))) {
+        $sim_val  = isset($opt['sim']) ? floatval($opt['sim']) : 0.0;
+        $esim_val = isset($opt['esim']) ? floatval($opt['esim']) : 0.0;
+        return [
+            'sim'  => round($sim_val, 2),
+            'esim' => round($esim_val, 2),
+        ];
+    }
+
+    // 2) Si no hay opción, calcular valores por defecto
+    $sim_price = 0.0;
+    $esim_price = 0.0;
+
+    // 2.a) obtener coste de envío por defecto para SIM física
+    $sim_price = self::get_default_shipping_cost();
+
+    // 2.b) calcular precio promedio de _usaalo_servicio_precio_esim en productos publicados
+    $wpdb = self::db();
+    $meta_key = '_usaalo_servicio_precio_esim';
+
+    $rows = $wpdb->get_col(
+        $wpdb->prepare(
+            "SELECT pm.meta_value
+             FROM {$wpdb->prefix}postmeta pm
+             INNER JOIN {$wpdb->prefix}posts p ON pm.post_id = p.ID
+             WHERE pm.meta_key = %s
+               AND p.post_type = 'product'
+               AND p.post_status = 'publish'
+             ",
+            $meta_key
+        )
+    );
+
+    $sum = 0.0;
+    $count = 0;
+    if (!empty($rows)) {
+        foreach ($rows as $val) {
+            $v = floatval($val);
+            if ($v > 0) {
+                $sum += $v;
+                $count++;
+            }
+        }
+    }
+
+    if ($count > 0) {
+        $esim_price = round($sum / $count, 2);
+    } else {
+        // fallback: 0 (puedes cambiar a un valor por defecto)
+        $esim_price = 0.0;
+    }
+
+    return [
+        'sim'  => round(floatval($sim_price), 2),
+        'esim' => round(floatval($esim_price), 2),
+    ];
+}
+
+/**
+ * Helper privado: intenta obtener un coste de envío por defecto (primera tarifa válida encontrada).
+ * Devuelve 0.0 si no puede determinar un coste.
+ *
+ * @return float
+ */
+private static function get_default_shipping_cost(): float {
+    if (!class_exists('WC_Shipping_Zones') || !function_exists('WC')) {
+        return 0.0;
+    }
+
+    $shipping_cost = 0.0;
+
+    // Buscar entre zonas y métodos la primera tarifa con costo > 0
+    try {
+        $zones = WC_Shipping_Zones::get_zones();
+
+        foreach ($zones as $zone) {
+            // cada $zone es un array con 'id'
+            if (empty($zone['id'])) continue;
+            $zone_obj = new WC_Shipping_Zone($zone['id']);
+            $zone_methods = $zone_obj->get_shipping_methods();
+
+            foreach ($zone_methods as $method) {
+                if (isset($method->enabled) && $method->enabled === 'yes') {
+                    // intentar obtener opción 'cost' (para flat_rate u otros)
+                    if (method_exists($method, 'get_option')) {
+                        $cost = floatval($method->get_option('cost', 0));
+                    } else {
+                        $cost = floatval($method->settings['cost'] ?? 0);
+                    }
+
+                    if ($cost > 0) {
+                        $shipping_cost = $cost;
+                        break 2; // salimos al encontrar la primera tarifa válida
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // silent fail: devolver 0
+        $shipping_cost = 0.0;
+    }
+
+    return round($shipping_cost, 2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+    public static function get_country_prices(array $country_codes, int $dias = 1, bool $sim_fisica = false): array {
+        $prices = [];
+
+        if (empty($country_codes) || $dias < 1) return [];
+
+        // Normalizar codes
+        $country_codes = array_map('strtoupper', $country_codes);
+
+        // Obtener productos del cache por code
+        $products = USAALO_cache::get_productos_por_country($country_codes);
+        if (empty($products)) return [];
+
+        $total_price = 0;
+        $products_selected = [];
+
+        foreach ($products as $p) {
+            $price_for_days = 0;
+
+            if ($p['type'] === 'variable' && !empty($p['ranges'])) {
+                // Crear índice de rangos: clave = min-max, valor = price
+                $range_map = [];
+                foreach ($p['ranges'] as $r) {
+                    $range_map[$r['min'].'-'.$r['max']] = floatval($r['price']);
+                }
+
+                // Buscar rango correcto usando comparación directa
+                foreach ($range_map as $range => $price) {
+                    list($min, $max) = explode('-', $range);
+                    if ($dias >= intval($min) && $dias <= intval($max)) {
+                        $price_for_days = $price * $dias;
+                        break;
+                    }
+                }
+
+                // Si no encuentra rango, usar base_price
+                if ($price_for_days === 0) {
+                    $price_for_days = $p['base_price'] * $dias;
+                }
+
+            } else {
+                $price_for_days = $p['base_price'] * $dias;
             }
 
-            // Obtener regla que cubra los días para ese plan y sim_type
-            $rule = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_pricing_rules WHERE plan_id=%d AND sim_type=%s AND min_days <= %d AND max_days >= %d AND active=1 ORDER BY min_days DESC LIMIT 1", $plan_id, $sim_type, $days, $days), ARRAY_A);
+            $total_price += $price_for_days;
 
-            if (!$rule) {
-                // fallback: regla más cercana
-                $rule = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_pricing_rules WHERE plan_id=%d AND sim_type=%s AND active=1 ORDER BY ABS(((min_days+max_days)/2)-%d) ASC LIMIT 1", $plan_id, $sim_type, $days), ARRAY_A);
-            }
-
-            if (!$rule) {
-                $breakdown[] = ['country' => $country_code, 'error' => __('No hay reglas de precio configuradas', 'usaalo-cotizador')];
-                continue;
-            }
-
-            $price_per_day = floatval($rule['base_price']);
-            $country_price = $price_per_day * $days;
-
-            $voice_addon = in_array('voice', $services) ? floatval($rule['voice_addon']) : 0.0;
-            $sms_addon = in_array('sms', $services) ? floatval($rule['sms_addon']) : 0.0;
-            $services_addon_total = ($voice_addon + $sms_addon) * $days;
-
-            $region_surcharge = floatval($rule['region_surcharge']);
-
-            $subtotal = $country_price + $services_addon_total + $region_surcharge;
-
-            $total_price += $subtotal;
-
-            $breakdown[] = [
-                'country' => $country_code,
-                'plan_id' => intval($plan_id),
-                'rule_id' => intval($rule['id']),
-                'days' => $days,
-                'price_per_day' => number_format($price_per_day, 2, '.', ''),
-                'country_price' => number_format($country_price, 2, '.', ''),
-                'services_addon' => number_format($services_addon_total, 2, '.', ''),
-                'region_surcharge' => number_format($region_surcharge, 2, '.', ''),
-                'subtotal' => number_format($subtotal, 2, '.', ''),
+            $products_selected[] = [
+                'product_id' => $p['product_id'],
+                'name'       => $p['name'],
+                'price'      => round($price_for_days, 2),
+                'price_html' => wc_price(round($price_for_days, 2)),
+                'countries'  => $p['matches'], // id y code
             ];
         }
 
-        // Compatibilidad del dispositivo (si proporcionado)
-        $compat_status = 'unknown';
-        if ($brand && $model) {
-            $compatible_all = true;
-            $only_data = false;
-            foreach ($countries as $country_code) {
-                $row = self::get_device_country_compat($model, $country_code);
-                if (!$row) {
-                    $compatible_all = false;
-                    break;
-                }
-                if (intval($row['esim_supported']) === 0 && $sim_type === 'esim') {
-                    $compatible_all = false;
-                }
-                if (intval($row['voice_supported']) === 0 && in_array('voice', $services)) {
-                    $only_data = true;
-                }
-            }
-            if ($compatible_all) $compat_status = 'compatible';
-            elseif ($only_data) $compat_status = 'only_data';
-            else $compat_status = 'not_compatible';
-        }
-
-        $result['success'] = true;
-        $result['total'] = floatval(number_format($total_price, 2, '.', ''));
-        $result['breakdown'] = $breakdown;
-        $result['compatibility'] = $compat_status;
-        return $result;
-    }
-
-    /* -----------------------------
-     * Helper para crear producto variable en WooCommerce
-     * - Este helper crea el producto, añade atributos y variaciones
-     * - Por seguridad: verifica que WooCommerce esté activo
-     *
-     * @param string $title
-     * @param array $countries array of country codes (strings)
-     * @param string $sim_type 'esim'|'physical'
-     * @param array $rules array of pricing rules rows (each with min_days,max_days,base_price,...)
-     * @param array $options optional: ['save_price_per_day_meta' => true]
-     * @return array ['success'=>bool,'product_id'=>int|null,'message'=>string]
-     */
-    public static function create_wc_product_from_plan(string $title, array $countries, string $sim_type, array $rules, array $options = []) : array {
-        if (!class_exists('WC_Product_Variable')) {
-            return ['success' => false, 'product_id' => null, 'message' => __('WooCommerce no está activo.', 'usaalo-cotizador')];
-        }
-
-        // sanitize
-        $countries = array_map('sanitize_text_field', $countries);
-        $sim_type = sanitize_text_field($sim_type);
-        $title = sanitize_text_field($title);
-
-        try {
-            // create product
-            $product = new WC_Product_Variable();
-            $product->set_name($title);
-            $product->set_status('publish');
-            $product->set_catalog_visibility('visible');
-            $product->save();
-            $product_id = $product->get_id();
-            if (!$product_id) throw new Exception(__('No se pudo crear el producto.', 'usaalo-cotizador'));
-
-            // build attribute objects
-            $attr_objects = [];
-
-            // Country attribute (non-taxonomy)
-            $country_values = array_values($countries);
-            $attr_country = new WC_Product_Attribute();
-            $attr_country->set_name('Country');
-            $attr_country->set_options($country_values);
-            $attr_country->set_position(0);
-            $attr_country->set_visible(1);
-            $attr_country->set_variation(1);
-            $attr_objects[] = $attr_country;
-
-            // SIM Type
-            $attr_sim = new WC_Product_Attribute();
-            $attr_sim->set_name('SIM Type');
-            $attr_sim->set_options([ucfirst($sim_type)]);
-            $attr_sim->set_position(1);
-            $attr_sim->set_visible(1);
-            $attr_sim->set_variation(1);
-            $attr_objects[] = $attr_sim;
-
-            // Days Range
-            $ranges = [];
-            foreach ($rules as $r) {
-                $ranges[] = sprintf('%d-%d', intval($r['min_days']), intval($r['max_days']));
-            }
-            $attr_days = new WC_Product_Attribute();
-            $attr_days->set_name('Days Range');
-            $attr_days->set_options(array_values(array_unique($ranges)));
-            $attr_days->set_position(2);
-            $attr_days->set_visible(1);
-            $attr_days->set_variation(1);
-            $attr_objects[] = $attr_days;
-
-            $product->set_attributes($attr_objects);
-            $product->save();
-
-            // Create variations (cartesian product)
-            foreach ($country_values as $country_val) {
-                foreach ($attr_days->get_options() as $range_label) {
-                    // get corresponding rule
-                    list($min, $max) = array_map('intval', explode('-', $range_label));
-                    $matched_rule = null;
-                    foreach ($rules as $r) {
-                        if (intval($r['min_days']) === $min && intval($r['max_days']) === $max) {
-                            $matched_rule = $r;
-                            break;
+        // SIM física → agregar envío
+        if ($sim_fisica) {
+            $shipping_cost = 0;
+            $shipping_methods = WC()->shipping()->get_shipping_methods();
+            foreach ($shipping_methods as $method) {
+                if ($method->enabled === 'yes') {
+                    $zones = WC_Shipping_Zones::get_zones();
+                    foreach ($zones as $zone) {
+                        $zone_obj = new WC_Shipping_Zone($zone['id']);
+                        $zone_methods = $zone_obj->get_shipping_methods();
+                        foreach ($zone_methods as $zm) {
+                            if ($zm->enabled === 'yes') {
+                                $shipping_cost = floatval($zm->get_instance_form_fields()['cost']['default'] ?? 0);
+                                break 3;
+                            }
                         }
                     }
-                    if (!$matched_rule) continue;
-
-                    // Price policy: price for min days (business rule)
-                    $price_for_min_days = floatval($matched_rule['base_price']) * $min;
-
-                    $variation = new WC_Product_Variation();
-                    $variation->set_parent_id($product_id);
-                    $variation_attr = [
-                        sanitize_title('country') => $country_val, // variation attribute keys are sanitized form of name
-                        sanitize_title('sim type') => ucfirst($sim_type),
-                        sanitize_title('days range') => $range_label,
-                    ];
-                    // Use sanitized names consistent with attributes set earlier: set_attributes expects attribute slugs
-                    // For non-taxonomy attributes, Woo expects the attribute names in variation attributes to be the same as set on product,
-                    // but the WordPress sanitizer will transform them. We'll match by name lowercased.
-                    // Set attributes directly on variation using set_attributes(array)
-                    $variation->set_attributes([
-                        'country' => $country_val,
-                        'sim type' => ucfirst($sim_type),
-                        'days range' => $range_label,
-                    ]);
-
-                    $variation->set_regular_price((string) number_format($price_for_min_days, 2, '.', ''));
-                    $variation->set_stock_status('instock');
-                    $variation->save();
-
-                    // optionally store price_per_day meta
-                    if (!empty($options['save_price_per_day_meta'])) {
-                        update_post_meta($variation->get_id(), '_usaalo_price_per_day', floatval($matched_rule['base_price']));
-                        update_post_meta($variation->get_id(), '_usaalo_rule_id', intval($matched_rule['id']));
-                    }
                 }
             }
+            $total_price += $shipping_cost;
+        }
 
-            return ['success' => true, 'product_id' => $product_id, 'message' => __('Producto creado', 'usaalo-cotizador')];
+        return [
+            'total_price'   => round($total_price, 2),
+            'total_html'    => wc_price(round($total_price, 2)),
+            'products'      => $products_selected
+        ];
+    }
 
-        } catch (Exception $e) {
-            return ['success' => false, 'product_id' => null, 'message' => $e->getMessage()];
+
+
+
+
+
+
+
+
+
+    /**
+     * Obtener todos los modelos agrupados por marca
+     * @return array
+     */
+    public static function get_all_models(): array {
+        $wpdb = self::db();
+        $table = $wpdb->prefix . 'usaalo_models';
+        $table_brands = $wpdb->prefix . 'usaalo_brands';
+
+        $rows = $wpdb->get_results("
+            SELECT m.id, m.name, m.slug, m.brand_id, b.name AS brand_name
+            FROM $table m
+            INNER JOIN $table_brands b ON m.brand_id = b.id
+            ORDER BY b.name ASC, m.name ASC
+        ", ARRAY_A);
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $brandId = $row['brand_id'];
+            if (!isset($grouped[$brandId])) {
+                $grouped[$brandId] = [];
+            }
+            $grouped[$brandId][] = [
+                'id'   => $row['id'],
+                'name' => $row['name'],
+                'slug' => $row['slug'],
+            ];
+        }
+
+        return $grouped;
+    }
+
+
+
+    /**
+     * Obtiene todos los países con disponibilidad de productos
+     */
+    public static function get_countries_with_availability(): array {
+        $wpdb = self::db();
+        $table_countries = $wpdb->prefix . 'usaalo_countries';
+        $table_product_country = $wpdb->prefix . 'usaalo_product_country';
+        $table_posts = $wpdb->prefix . 'posts';
+
+        $countries = $wpdb->get_results("SELECT id, code, name FROM $table_countries ORDER BY name ASC", ARRAY_A);
+
+        if (!$countries) return [];
+
+        $available_id = $wpdb->get_col("
+            SELECT DISTINCT pc.country_id
+            FROM $table_product_country pc
+            INNER JOIN $table_posts p ON pc.product_id = p.ID
+            WHERE p.post_type='product' AND p.post_status='publish'
+        ");
+
+        foreach ($countries as &$c) {
+            $c['disponible'] = in_array($c['id'], $available_id);
+            $c['mensaje'] = $c['disponible'] ? '' : __('Próximamente','usaalo-cotizador');
+        }
+
+        return $countries;
+    }
+
+
+    public static function get_productos_por_country($country_ids): array {
+        $cache = USAALO_Cache::get_cache();
+        $country_ids = is_array($country_ids) ? $country_ids : [$country_ids];
+        
+        $productos = [];
+        foreach ($cache as $p) {
+            $coverage = count(array_intersect($p['countries'], $country_ids));
+            if ($coverage > 0) {
+                $productos[] = [
+                    'product_id'     => $p['product_id'],
+                    'base_price'     => $p['base_price'],
+                    'variations'     => $p['variations'],
+                    'coverage_count' => $coverage,
+                ];
+            }
+        }
+
+        // aplicar lógica avanzada aquí (como ya te lo dejé en la otra respuesta)
+        return $productos;
+    }
+
+
+
+
+
+
+    /**
+     * Obtener servicios disponibles por países y modelo
+     */
+    public static function servicios_disponibles_por_countries(array $country_codes, int $model_id = null): array {
+        $wpdb = self::db();
+        if (empty($country_codes) || !$model_id) return ['sin configuración'];
+
+        $table_config    = $wpdb->prefix . 'usaalo_device_config';
+        $table_country   = $wpdb->prefix . 'usaalo_device_country';
+        $table_countries = $wpdb->prefix . 'usaalo_countries';
+
+        $placeholders = implode(',', array_fill(0,count($country_codes),'%s'));
+        $country_rows = $wpdb->get_results($wpdb->prepare("SELECT id, code FROM $table_countries WHERE code IN ($placeholders)", ...$country_codes), ARRAY_A);
+        if (!$country_rows) return ['sin configuración'];
+        $country_ids = array_column($country_rows,'id');
+
+        $global = $wpdb->get_row($wpdb->prepare("SELECT sim_supported, esim_supported, voice_supported, sms_supported, data_supported FROM $table_config WHERE model_id=%d",$model_id));
+        if (!$global) return ['sin configuración'];
+
+        $placeholders_ids = implode(',', array_fill(0,count($country_ids),'%d'));
+        $sql = "SELECT country_id,
+                COALESCE(sim_supported,%d) AS sim,
+                COALESCE(esim_supported,%d) AS esim,
+                COALESCE(voice_supported,%d) AS voice,
+                COALESCE(sms_supported,%d) AS sms,
+                COALESCE(data_supported,%d) AS data
+                FROM $table_country
+                WHERE model_id=%d AND country_id IN ($placeholders_ids)";
+
+        $params = array_merge([$global->sim_supported,$global->esim_supported,$global->voice_supported,$global->sms_supported,$global->data_supported,$model_id],$country_ids);
+        $results = $wpdb->get_results($wpdb->prepare($sql,...$params));
+
+        $services = [];
+        foreach ($country_rows as $c) {
+            $row = null;
+            foreach ($results as $r) { if ((int)$r->country_id === (int)$c['id']) { $row=$r; break; } }
+            if (!$row) $row = (object)[
+                'sim'=>$global->sim_supported,'esim'=>$global->esim_supported,
+                'voice'=>$global->voice_supported,'sms'=>$global->sms_supported,
+                'data'=>$global->data_supported
+            ];
+
+            $country_services=['code'=>$c['code'],'id'=>$c['id'],'services'=>[]];
+            if($row->data) $country_services['services'][]='datos';
+            if($row->voice) $country_services['services'][]='llamadas';
+            if($row->sms) $country_services['services'][]='sms';
+            if($row->esim) $country_services['services'][]='esim';
+            if($row->sim) $country_services['services'][]='sim';
+
+            $services[$c['id']] = !empty($country_services['services']) ? $country_services : ['code'=>$c['code'],'id'=>$c['id'],'services'=>['sin configuración']];
+        }
+
+        return $services;
+    }
+
+    public static function servicios_disponibles_todos_modelos(): array {
+    $wpdb = self::db();
+
+    // Obtener todos los modelos
+    $models = $wpdb->get_results("SELECT id FROM {$wpdb->prefix}usaalo_device_config");
+
+    // Obtener todos los países
+    $countries = $wpdb->get_results("SELECT id, code FROM {$wpdb->prefix}usaalo_countries");
+
+    $services_cache = [];
+
+    foreach ($models as $model) {
+        $model_id = (int)$model->id;
+
+        // Obtener configuración global del modelo
+        $global = $wpdb->get_row($wpdb->prepare(
+            "SELECT sim_supported, esim_supported, voice_supported, sms_supported, data_supported 
+             FROM {$wpdb->prefix}usaalo_device_config 
+             WHERE model_id=%d",
+            $model_id
+        ));
+
+        if (!$global) continue;
+
+        // Obtener configuraciones por país
+        $country_ids = array_column((array)$countries, 'id');
+        $placeholders = implode(',', array_fill(0, count($country_ids), '%d'));
+
+        $sql = "SELECT country_id,
+                       COALESCE(sim_supported,%d) AS sim,
+                       COALESCE(esim_supported,%d) AS esim,
+                       COALESCE(voice_supported,%d) AS voice,
+                       COALESCE(sms_supported,%d) AS sms,
+                       COALESCE(data_supported,%d) AS data
+                FROM {$wpdb->prefix}usaalo_device_country
+                WHERE model_id=%d AND country_id IN ($placeholders)";
+
+        $params = array_merge(
+            [$global->sim_supported, $global->esim_supported, $global->voice_supported, $global->sms_supported, $global->data_supported, $model_id],
+            $country_ids
+        );
+
+        $results = $wpdb->get_results($wpdb->prepare($sql, ...$params));
+
+        // Mapear resultados por country_id
+        $results_map = [];
+        foreach ($results as $r) {
+            $results_map[$r->country_id] = $r;
+        }
+
+        // Generar servicios por país
+        foreach ($countries as $c) {
+            $row = $results_map[$c->id] ?? (object)[
+                'sim'=>$global->sim_supported,
+                'esim'=>$global->esim_supported,
+                'voice'=>$global->voice_supported,
+                'sms'=>$global->sms_supported,
+                'data'=>$global->data_supported
+            ];
+
+            $country_services = ['code'=>$c->code, 'id'=>$c->id, 'services'=>[]];
+            if ($row->data) $country_services['services'][] = 'datos';
+            if ($row->voice) $country_services['services'][] = 'llamadas';
+            if ($row->sms) $country_services['services'][] = 'sms';
+            if ($row->esim) $country_services['services'][] = 'esim';
+            if ($row->sim) $country_services['services'][] = 'sim';
+
+            $services_cache[$model_id][$c->code] = !empty($country_services['services']) 
+                ? $country_services 
+                : ['code'=>$c->code, 'id'=>$c->id, 'services'=>['sin configuración']];
         }
     }
 
-    /* -----------------------------
-     * Points Colombia (placeholder)
-     * ----------------------------- */
-
-    /**
-     * Aplica puntos Colombia al monto dado (placeholder)
-     * Implementación recomendada: hook en woocommerce_cart_calculate_fees / woocommerce_checkout_create_order
-     *
-     * @param float $total
-     * @param int $points cantidad de puntos a aplicar
-     * @param float $value_per_point (ej: 0.01)
-     * @return array ['total_after'=>float,'discount'=>float]
-     */
-    public static function apply_colombia_points(float $total, int $points, float $value_per_point = 0.01) : array {
-        $discount = min($total, $points * $value_per_point);
-        $new_total = max(0, $total - $discount);
-        return ['total_after' => round($new_total, 2), 'discount' => round($discount, 2)];
-    }
+    return $services_cache;
 }
 
-/* End of includes/helpers.php */
+    /**
+     * Calcular precio de plan WooCommerce por días, servicios y SIM física
+     */
+    public static function calcular_precio_plan($plan_id, $dias=1, $servicios=[], $sim_fisica=false): float {
+        $plan_ids = is_array($plan_id) ? $plan_id : [$plan_id];
+        $precio_total=0;
+
+        foreach ($plan_ids as $product_id) {
+            if (!$product_id) continue;
+            $product = wc_get_product($product_id);
+            if (!$product) continue;
+
+            $precio_plan=0;
+
+            // Producto variable según rango de días
+            if ($product->is_type('variable')) {
+                $variations = $product->get_available_variations();
+                $found=false;
+                foreach ($variations as $v) {
+                    if (!empty($v['attributes']['attribute_rango_de_dias'])) {
+                        $range=explode('-',$v['attributes']['attribute_rango_de_dias']);
+                        $min=intval($range[0]);
+                        $max=intval($range[1]??$min);
+                        if($dias>=$min && $dias<=$max){ $precio_plan=floatval($v['display_price']); $found=true; break; }
+                    }
+                }
+                if(!$found && !empty($variations)) $precio_plan=floatval($variations[0]['display_price']);
+            } else { // simple
+                $precio_plan=floatval($product->get_price())*$dias;
+            }
+
+            // Servicios extra
+            foreach ($servicios as $s) {
+                if(in_array($s,['llamadas','sms','esim'])){
+                    $meta='_usaalo_servicio_precio_'.$s;
+                    $precio_plan+=floatval(get_post_meta($product_id,$meta,true));
+                }
+            }
+
+            // SIM física → agregar costo envío
+            if($sim_fisica){
+                $shipping_cost=0;
+                $methods = WC()->shipping()->get_shipping_methods();
+                foreach($methods as $method){
+                    if($method->enabled==='yes'){
+                        $zones = WC_Shipping_Zones::get_zones();
+                        foreach($zones as $zone){
+                            $zone_obj = new WC_Shipping_Zone($zone['id']);
+                            $zone_methods = $zone_obj->get_shipping_methods();
+                            foreach($zone_methods as $zm){
+                                if($zm->enabled==='yes'){
+                                    $shipping_cost=floatval($zm->get_instance_form_fields()['cost']['default'] ?? 0);
+                                    break 3;
+                                }
+                            }
+                        }
+                    }
+                }
+                $precio_plan+=$shipping_cost;
+            }
+
+            $precio_total+=$precio_plan;
+        }
+
+        return round($precio_total,2);
+    }
+
+    public static function get_countries_regions(string $search = '', int $product_id = 0): array {
+        $wpdb = self::db();
+
+        $table_countries = $wpdb->prefix . 'usaalo_countries';
+
+        $sql = "SELECT id, name, code, region
+                FROM $table_countries
+                WHERE 1=1";
+        $params = [];
+
+        if ($search) {
+            $like = '%' . $wpdb->esc_like($search) . '%';
+            $sql .= " AND (name LIKE %s OR region LIKE %s)";
+            $params[] = $like;
+            $params[] = $like;
+        }
+
+        $sql .= " ORDER BY region, name";
+
+        $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params));
+
+        if (!$rows) return [];
+
+        // Agrupar por la columna `region`
+        $grouped = [];
+        foreach ($rows as $row) {
+            $region = $row->region ?: __('Sin región', 'usaalo-cotizador');
+            if (!isset($grouped[$region])) {
+                $grouped[$region] = [
+                    'text' => $region,
+                    'children' => []
+                ];
+            }
+            $grouped[$region]['children'][] = [
+                'id'   => $row->id,
+                'text' => $row->name,
+                'code' => $row->code
+            ];
+        }
+
+        return array_values($grouped);
+    }
+
+
+
+
+}

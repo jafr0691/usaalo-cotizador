@@ -1,75 +1,452 @@
-/* Contenedor principal */
-#usaalo-quote-form {
+/* ========================
+   Contenedor principal
+======================== */
+#usaalo-cotizador-wizard {
+    position: relative;
     border: 1px solid #e5e7eb;
-    border-radius: 16px;
+    border-radius: 12px;
     padding: 16px;
     background-color: #fff;
     max-width: 800px;
     margin: 0 auto;
-    font-family: Arial, sans-serif;
+    font-family: inherit;
+    box-sizing: border-box;
 }
 
-/* Pasos */
-.step {
-    display: none;
-    margin-bottom: 16px;
+#usaalo-price{
+    position: absolute;
+    right: 50px;
+    bottom: 30px;
 }
 
-.step.active {
-    display: block;
+/* ========================
+   Pasos
+======================== */
+.step { display: none; margin-bottom: 16px; }
+.step.active { display: block; }
+
+/* ========================
+   Indicadores de pasos
+======================== */
+.usaalo-steps {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 0;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+.usaalo-steps li {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-bottom: 2px solid #d1d5db;
+    font-weight: 600;
+    color: inherit;
+}
+.usaalo-steps li.active {
+    border-color: #0073aa;
+    color: #0073aa;
 }
 
-/* Etiquetas y campos */
+/* ========================
+   Etiquetas y campos
+======================== */
 #usaalo-quote label {
     display: block;
     margin-bottom: 6px;
     font-weight: 600;
     color: #374151;
 }
-
-#usaalo-quote input[type="text"],
-#usaalo-quote input[type="number"],
-#usaalo-quote input[type="date"],
+#usaalo-quote input[type=text],
+#usaalo-quote input[type=number],
+#usaalo-quote input[type=date],
 #usaalo-quote select {
     width: 100%;
     padding: 8px 10px;
     margin-bottom: 12px;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 14px;
+    box-sizing: border-box;
 }
 
-/* Botones */
+/* ========================
+   Botones
+======================== */
 #usaalo-quote button {
-    background-color: #111827;
+    background-color: #0073aa;
     color: #fff;
     padding: 10px 16px;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
+    font-size: 14px;
+    transition: background 0.2s;
 }
+#usaalo-quote button:hover { background-color: #005177; }
 
-#usaalo-quote button:hover {
-    background-color: #374151;
-}
-
-/* Resumen y precio */
-#quote-summary, #quote-price {
+/* ========================
+   Resumen y mensajes
+======================== */
+#usaalo-summary,
+#usaalo-price,
+#price-base {
     margin-top: 12px;
-    font-size: 16px;
-}
-
-/* Error */
-#quote-error {
-    color: red;
+    font-size: 15px;
+    color: inherit;
     font-weight: 600;
-    margin-top: 12px;
+}
+#usaalo-message {
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    display: none;
+}
+#usaalo-message.info { background:#e0f7fa; color:#006064; }
+#usaalo-message.error { background:#ffebee; color:#c62828; }
+#quote-error { color: #d32f2f; font-weight: 600; margin-top: 12px; }
+
+/* ========================
+   Select2 ajustes
+======================== */
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice__remove {
+    background: transparent;
+    border: none;
+    color: #555;
+    font-weight: normal;
+    font-size: 14px;
+    line-height: 1;
+    margin-right: 2px;
+    padding: 0;
+    cursor: pointer;
+    vertical-align: middle;
+}
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice__remove:hover {
+    color: #d32f2f;
+}
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice {
+    padding: 0 4px 0 8px;
+    font-size: 14px;
+    line-height: 1.6;
 }
 
-/* Responsive */
+/* ========================
+   Botones SIM y Servicios
+======================== */
+.usaalo-sim-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center; /* centrar horizontalmente */
+    margin-bottom: 12px;
+}
+
+.sim-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fff;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.sim-option:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.sim-option input { display: none; }
+
+.sim-option span {
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.sim-option input:checked + span {
+    background-color: #0073aa;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0,115,170,0.3);
+    transform: scale(1.05);
+}
+
+/* ========================
+   Servicios en columna
+======================== */
+.usaalo-services-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+    justify-content: center; /* centrar */
+}
+
+.service-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fff;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.service-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.service-option input { display: none; }
+
+.service-option span {
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.service-option input:checked + span {
+    background-color: #0073aa;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0,115,170,0.3);
+    transform: scale(1.05);
+}
+
+/* Iconos dentro de SIM y servicios */
+.sim-icon, .service-icon { font-size: 18px; line-height: 1; }
+
+.service-type {
+    display: flex;
+    gap: 10px;
+}
+
+/* ========================
+   Responsive
+======================== */
 @media (max-width: 768px) {
-    #usaalo-quote-form {
-        padding: 12px;
+    .usaalo-sim-buttons, .usaalo-services-buttons {
+        flex-direction: column;
+        align-items: center;
     }
+    .sim-option, .service-option { width: 100%; max-width: 150px; }
+}
+
+.service-option:has(input:checked) {
+    background-color: #76c5eb;
+    border-color: #0073aa;
+    box-shadow: 0 4px 8px rgba(0,115,170,0.25);
+}
+
+.sim-option:has(input:checked) {
+    background-color: #76c5eb;
+    border-color: #0073aa;
+    box-shadow: 0 4px 8px rgba(0,115,170,0.25);
+}
+
+
+
+
+/* ========================
+   Botones prev/next
+======================== */
+p.btn-prev-next>button { margin-top: 15px !important; }
+
+/* ========================
+   Highlight en resumen
+======================== */
+#usaalo-summary .highlight {
+    background-color: #0073aa;
+    color: #fff;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* ========================
+   Títulos de sección SIM y servicios
+======================== */
+.sim-section p,
+.services-section p {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+/* ========================
+   Responsive
+======================== */
+@media (max-width: 768px) {
+    #usaalo-cotizador-wizard { padding: 12px; }
+    .usaalo-steps { flex-direction: column; gap: 8px; }
+    .usaalo-sim-buttons, .usaalo-services-buttons { flex-direction: column; }
+    .sim-option, .service-option { width: 100%; justify-content: flex-start; }
+}
+
+.field-error {
+    border: 2px solid #e74c3c !important;
+    background-color: #fdecea;
+}
+
+/* ============================
+   Banderas en select2
+============================ */
+.country-flag {
+    width: 1.5rem;
+    height: auto;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+}
+
+/* Opciones deshabilitadas / próximos */
+/* Aplica estilo al li que contiene country-disabled */
+.select2-results__option:has(.country-disabled) {
+    background-color: #f87171; /* rojo */
+    color: #fff !important;
+    font-style: italic;
+}
+
+
+/* Opciones seleccionadas (en el contenedor de selección) */
+.select2-selection__rendered .country-flag {
+    width: 1.5rem;
+    height: auto;
+    margin-right: 0.5rem;
+}
+
+/* Ajuste general de las opciones del dropdown */
+.select2-results__option .country-flag {
+    width: 1.5rem;
+    height: auto;
+    margin-right: 0.5rem;
+}
+
+/* Contenedor general */
+.service-option, .sim-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+/* Activos */
+.service-option:hover:not(.disabled),
+.sim-option:hover:not(.disabled) {
+    background: #eef6ff;
+    border-color: #0073e6;
+    box-shadow: 0 2px 8px rgba(0,115,230,0.15);
+}
+
+/* Bandera */
+.service-option img.flag {
+    width: 20px;
+    height: 14px;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Deshabilitados */
+.service-option.disabled,
+.sim-option.disabled {
+    opacity: 0.4;
+    background: #f1f1f1;
+    border: 1px dashed #bbb;
+    cursor: not-allowed;
+    filter: grayscale(100%);
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: max-content;
+    max-width: 240px;
+    background: #333;
+    color: #fff;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%; /* arriba del elemento */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+.flag{
+    width: 24px;
+}
+
+/* Efecto de shimmer / pulso para indicar carga */
+#usaalo-price.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none; /* opcional, evita clicks mientras carga */
+}
+
+#usaalo-price.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+    animation: shimmer 1s infinite;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.country-flag {
+    width: 24px;
+    height: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+.country-disabled {
+    cursor: not-allowed;
+}
+
+.select2-container .select2-selection--single, .select2-container .select2-search--inline .select2-search__field{
+    height: auto !important;
 }

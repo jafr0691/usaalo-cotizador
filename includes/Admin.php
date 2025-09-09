@@ -1,191 +1,177 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-/**
- * Admin.php
- * Panel de administración para Usaalo Cotizador
- * - Listado de Plans, Rules, Countries, Brands
- * - Formulario para crear/editar Rules (modal)
- * - Enqueue select2, datatables y admin.js
- * - AJAX: usaalo_get_rule, usaalo_save_rule, usaalo_delete_rule (registered here)
- */
-
 class USAALO_Admin {
+
+    private $helpers;
 
     public function __construct() {
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+        // Hook al eliminar un producto
+        add_action('before_delete_post', [self::class, 'delete_product_country_records']);
 
-        // AJAX admin endpoints
-        add_action('wp_ajax_usaalo_get_rule', [$this, 'ajax_get_rule']);
-        add_action('wp_ajax_usaalo_save_rule', [$this, 'ajax_save_rule']);
-        add_action('wp_ajax_usaalo_delete_rule', [$this, 'ajax_delete_rule']);
+        // Helpers: carga si no existe
+        if ( ! class_exists('USAALO_Helpers') ) {
+            require_once USAALO_PATH . 'includes/helpers.php';
+        }
+        $this->helpers = new USAALO_Helpers();
+
+        // Nota: endpoints AJAX se registran en includes/ajax.php (mejor mantener separados)
     }
 
+    /**
+     * Añade el menú y submenús, la URL principal abre Countries
+     */
     public function add_menu() {
+        // Menú principal "Cotizador" que abre directamente "Países"
         add_menu_page(
             __('Usaalo Cotizador', 'usaalo-cotizador'),
-            __('Cotizador', 'usaalo-cotizador'),
+            __('Usaalo Cotizador', 'usaalo-cotizador'),
             'manage_options',
-            'usaalo-cotizador',
-            [$this, 'render_admin_page'],
+            'usaalo-cotizador',          // slug
+            [$this, 'render_countries_page'],
             'dashicons-cart',
             56
         );
+
+        // Submenús: usan como parent el slug del menú principal
+        add_submenu_page(
+            'usaalo-cotizador',
+            __('Países', 'usaalo-cotizador'),
+            __('Países', 'usaalo-cotizador'),
+            'manage_options',
+            'usaalo-cotizador-countries',
+            [$this, 'render_countries_page']
+        );
+
+        add_submenu_page(
+            'usaalo-cotizador',
+            __('Marcas y Modelos', 'usaalo-cotizador'),
+            __('Marcas y Modelos', 'usaalo-cotizador'),
+            'manage_options',
+            'usaalo-cotizador-brands-models',
+            [$this, 'render_brands_models_page']
+        );
+
+        add_submenu_page(
+            'usaalo-cotizador',
+            __('Tipo SIM y Servicios', 'usaalo-cotizador'),
+            __('Tipo SIM y Servicios', 'usaalo-cotizador'),
+            'manage_options',
+            'usaalo-cotizador-sim-servicio',
+            [$this, 'render_sim_servicio_page']
+        );
+
+        add_submenu_page(
+            'usaalo-cotizador',
+            __('Planes', 'usaalo-cotizador'),
+            __('Planes', 'usaalo-cotizador'),
+            'manage_options',
+            'usaalo-cotizador-plans',
+            [$this, 'render_plans_page']
+        );
     }
 
+    /**
+     * Registra/Enqueue assets solo para las páginas del plugin.
+     * Pasa al JS el hook actual para inicialización condicional.
+     */
     public function enqueue_assets($hook) {
-        // Only load on our plugin admin page
-        if ($hook !== 'toplevel_page_usaalo-cotizador') return;
+        // Los $hook devueltos por add_menu_page/add_submenu_page suelen ser:
+        // 'toplevel_page_{slug}' para la página top-level,
+        // '{parent_slug}_page_{submenu_slug}' para submenus.
+        $allowed_hooks = [
+            'toplevel_page_usaalo-cotizador',                       // menú principal
+            'usaalo-cotizador_page_usaalo-cotizador-countries',    // submenú Countries
+            'usaalo-cotizador_page_usaalo-cotizador-brands-models', // submenú Brands & Models
+            'usaalo-cotizador_page_usaalo-cotizador-sim-servicio',  // submenú SIM & Services
+            'usaalo-cotizador_page_usaalo-cotizador-plans'          // submenú Plans
+        ];
 
-        $base = plugin_dir_url(dirname(__FILE__)) . 'assets/';
+        if (!in_array($hook, $allowed_hooks)) {
+            return; // no cargar assets fuera de nuestras páginas admin
+        }
 
-        wp_enqueue_style('usaalo-select2', $base . 'lib/select2.min.css', [], '4.1.0');
-        wp_enqueue_style('usaalo-datatables', 'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css', [], '1.13.6');
-        wp_enqueue_style('usaalo-admin', $base . 'css/admin.css', [], USAALO_VERSION);
+        // Rutas base
+        $base = USAALO_URL . 'assets/';
 
-        wp_enqueue_script('usaalo-select2', $base . 'lib/select2.min.js', ['jquery'], '4.1.0', true);
-        wp_enqueue_script('usaalo-datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], '1.13.6', true);
-        wp_enqueue_script('usaalo-admin', $base . 'js/admin.js', ['jquery','usaalo-select2','usaalo-datatables'], USAALO_VERSION, true);
+        // Registrar estilos
+        wp_register_style('usaalo-select2', $base . 'lib/select2.min.css', [], '4.1.0');
+        wp_register_style('usaalo-datatables', 'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css', [], '1.13.6');
+        wp_register_style('usaalo-admin', $base . 'css/admin.css', [], time());
 
+        // Enqueue estilos
+        wp_enqueue_style('usaalo-select2');
+        wp_enqueue_style('usaalo-datatables');
+        wp_enqueue_style('usaalo-admin');
+        wp_enqueue_media();
+
+        // Registrar scripts
+        wp_register_script('usaalo-select2', $base . 'lib/select2.min.js', ['jquery'], '4.1.0', true);
+        wp_register_script('usaalo-datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], '1.13.6', true);
+        //USAALO_VERSION
+        wp_register_script('usaalo-admin', $base . 'js/admin.js', ['jquery','usaalo-select2','usaalo-datatables'], time(), true);
+
+        // Enqueue scripts
+        wp_enqueue_script('usaalo-select2');
+        wp_enqueue_script('usaalo-datatables');
+        wp_enqueue_script('usaalo-admin');
+
+        // Pasar datos útiles al JS: ajaxurl, nonce, traducciones e información del hook actual
         wp_localize_script('usaalo-admin', 'USAALO_Admin', [
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('usaalo_admin_nonce'),
+            'page'  => $hook, // <-- importante: pasar el hook real a JS
             'i18n' => [
                 'saved' => __('Guardado correctamente', 'usaalo-cotizador'),
                 'deleted' => __('Eliminado correctamente', 'usaalo-cotizador'),
+                'confirm_delete' => __('¿Seguro que deseas eliminar este elemento?', 'usaalo-cotizador'),
             ],
         ]);
+
     }
 
-    public function render_admin_page() {
+
+    public static function delete_product_country_records($post_id) {
+        // Solo aplicamos si es producto de WooCommerce
+        if (get_post_type($post_id) !== 'product') return;
+
         global $wpdb;
-        $plans = USAALO_Helpers::get_plans();
-        $rules = $wpdb->get_results("SELECT r.*, p.name as plan_name FROM {$wpdb->prefix}usaalo_pricing_rules r LEFT JOIN {$wpdb->prefix}usaalo_plans p ON r.plan_id = p.id ORDER BY r.id DESC", ARRAY_A);
-        ?>
-        <div class="wrap">
-            <h1><?php _e('Usaalo Cotizador', 'usaalo-cotizador'); ?></h1>
-            <p><?php _e('Gestiona planes, reglas y productos WooCommerce', 'usaalo-cotizador'); ?></p>
+        $table = $wpdb->prefix . 'usaalo_product_country';
 
-            <h2><?php _e('Planes', 'usaalo-cotizador'); ?></h2>
-            <table id="usaalo-plans-table" class="widefat striped">
-                <thead><tr><th><?php _e('Nombre','usaalo-cotizador');?></th><th><?php _e('SIMs','usaalo-cotizador');?></th><th><?php _e('Producto WC','usaalo-cotizador');?></th><th><?php _e('Activo','usaalo-cotizador');?></th></tr></thead>
-                <tbody>
-                <?php foreach($plans as $p): ?>
-                    <tr>
-                        <td><?php echo esc_html($p['name']); ?></td>
-                        <td><?php echo esc_html($p['sim_types']); ?></td>
-                        <td><?php echo $p['wc_product_id'] ? esc_html(get_the_title($p['wc_product_id'])) : '-'; ?></td>
-                        <td><?php echo $p['active'] ? __('Sí','usaalo-cotizador') : __('No','usaalo-cotizador'); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <h2><?php _e('Reglas de precio', 'usaalo-cotizador'); ?></h2>
-            <table id="usaalo-rules-table" class="widefat striped">
-                <thead><tr>
-                    <th><?php _e('Plan','usaalo-cotizador');?></th>
-                    <th><?php _e('Tipo SIM','usaalo-cotizador');?></th>
-                    <th><?php _e('Rango','usaalo-cotizador');?></th>
-                    <th><?php _e('Base','usaalo-cotizador');?></th>
-                    <th><?php _e('Voz','usaalo-cotizador');?></th>
-                    <th><?php _e('SMS','usaalo-cotizador');?></th>
-                    <th><?php _e('Acciones','usaalo-cotizador');?></th>
-                </tr></thead>
-                <tbody>
-                <?php foreach($rules as $r): ?>
-                    <tr>
-                        <td><?php echo esc_html($r['plan_name']); ?></td>
-                        <td><?php echo esc_html($r['sim_type']); ?></td>
-                        <td><?php echo intval($r['min_days']).' - '.intval($r['max_days']); ?></td>
-                        <td><?php echo esc_html($r['base_price']); ?></td>
-                        <td><?php echo esc_html($r['voice_addon']); ?></td>
-                        <td><?php echo esc_html($r['sms_addon']); ?></td>
-                        <td>
-                            <button class="button edit-rule" data-id="<?php echo intval($r['id']); ?>"><?php _e('Editar','usaalo-cotizador');?></button>
-                            <button class="button delete-rule" data-id="<?php echo intval($r['id']); ?>"><?php _e('Eliminar','usaalo-cotizador');?></button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-
-            <!-- Modal: rule editor (simple) -->
-            <div id="usaalo-rule-modal" style="display:none;">
-                <form id="usaalo-rule-form">
-                    <input type="hidden" id="rule-id" name="id" value="">
-                    <p><label><?php _e('Plan','usaalo-cotizador');?></label>
-                        <select id="rule-plan" name="plan_id">
-                            <?php foreach($plans as $p): ?>
-                                <option value="<?php echo intval($p['id']); ?>"><?php echo esc_html($p['name']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </p>
-                    <p><label><?php _e('Desde días','usaalo-cotizador');?></label><input type="number" id="rule-from" name="min_days" required></p>
-                    <p><label><?php _e('Hasta días','usaalo-cotizador');?></label><input type="number" id="rule-to" name="max_days" required></p>
-                    <p><label><?php _e('Precio base (por día)','usaalo-cotizador');?></label><input type="text" id="rule-price" name="base_price" required></p>
-                    <p><label><?php _e('Voz addon (por día)','usaalo-cotizador');?></label><input type="text" id="rule-voice" name="voice_addon"></p>
-                    <p><label><?php _e('SMS addon (por día)','usaalo-cotizador');?></label><input type="text" id="rule-sms" name="sms_addon"></p>
-                    <p><button class="button button-primary" type="submit"><?php _e('Guardar','usaalo-cotizador');?></button>
-                    <button class="button cancel-rule" type="button"><?php _e('Cancelar','usaalo-cotizador');?></button></p>
-                </form>
-            </div>
-
-        </div>
-        <?php
+        $wpdb->delete(
+            $table,
+            ['product_id' => $post_id],
+            ['%d']
+        );
     }
 
-    /* ---------- AJAX handlers ---------- */
 
-    public function ajax_get_rule() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-        if (!$id) return wp_send_json_error(__('ID inválido','usaalo-cotizador'));
-        global $wpdb;
-        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}usaalo_pricing_rules WHERE id=%d", $id), ARRAY_A);
-        if (!$row) return wp_send_json_error(__('No encontrada','usaalo-cotizador'));
-        wp_send_json_success($row);
+    /* ---------- Renderers de página ---------- */
+
+    public function render_countries_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        $countries = method_exists($this->helpers, 'get_countries') ? $this->helpers->get_countries() : [];
+        include USAALO_PATH . 'includes/templates/admin-countries-template.php';
     }
 
-    public function ajax_save_rule() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        global $wpdb;
-        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-        $plan_id = isset($_POST['plan_id']) ? intval($_POST['plan_id']) : 0;
-        $min_days = isset($_POST['min_days']) ? intval($_POST['min_days']) : 0;
-        $max_days = isset($_POST['max_days']) ? intval($_POST['max_days']) : 0;
-        $base_price = isset($_POST['base_price']) ? floatval($_POST['base_price']) : 0;
-        $voice_addon = isset($_POST['voice_addon']) ? floatval($_POST['voice_addon']) : 0;
-        $sms_addon = isset($_POST['sms_addon']) ? floatval($_POST['sms_addon']) : 0;
-
-        if ($min_days > $max_days) return wp_send_json_error(__('Rango inválido','usaalo-cotizador'));
-
-        if ($id) {
-            $wpdb->update("{$wpdb->prefix}usaalo_pricing_rules",
-                ['plan_id'=>$plan_id,'min_days'=>$min_days,'max_days'=>$max_days,'base_price'=>$base_price,'voice_addon'=>$voice_addon,'sms_addon'=>$sms_addon],
-                ['id'=>$id], ['%d','%d','%d','%f','%f','%f'], ['%d']);
-        } else {
-            $wpdb->insert("{$wpdb->prefix}usaalo_pricing_rules",
-                ['plan_id'=>$plan_id,'min_days'=>$min_days,'max_days'=>$max_days,'base_price'=>$base_price,'voice_addon'=>$voice_addon,'sms_addon'=>$sms_addon],
-                ['%d','%d','%d','%f','%f','%f']);
-        }
-        wp_send_json_success(__('Regla guardada','usaalo-cotizador'));
+    public function render_brands_models_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        $brands    = method_exists($this->helpers, 'get_brands') ? $this->helpers->get_brands() : [];
+        $models    = method_exists($this->helpers, 'get_models') ? $this->helpers->get_models() : [];
+        include USAALO_PATH . 'includes/templates/admin-brands-models-template.php';
     }
 
-    public function ajax_delete_rule() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        global $wpdb;
-        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-        if (!$id) return wp_send_json_error(__('ID inválido','usaalo-cotizador'));
-        $wpdb->delete("{$wpdb->prefix}usaalo_pricing_rules", ['id'=>$id], ['%d']);
-        wp_send_json_success(__('Regla eliminada','usaalo-cotizador'));
+    public function render_sim_servicio_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        include USAALO_PATH . 'includes/templates/admin-sim_servicio-template.php';
     }
 
+    public function render_plans_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        // Nota: Los datos de productos (precio/desc) se consultan en WooCommerce cuando se necesiten.
+        include USAALO_PATH . 'includes/templates/admin-plans-template.php';
+    }
 }
 
-// initialize
-new USAALO_Admin();

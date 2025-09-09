@@ -1,0 +1,469 @@
+/* ---------------------------------
+    General
+---------------------------------- */
+.wrap h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #222;
+}
+
+.wrap p {
+    font-size: 14px;
+    color: #555;
+}
+
+/* ---------------------------------
+    Botones
+---------------------------------- */
+.button {
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.button:hover {
+    background-color: #0073aa;
+    color: #fff;
+    border-color: #0073aa;
+}
+
+.button-primary {
+    background-color: #0073aa;
+    color: #fff;
+    border: 1px solid #0073aa;
+}
+
+.button-primary:hover {
+    background-color: #005177;
+    border-color: #005177;
+}
+
+/* ---------------------------------
+    Tablas
+---------------------------------- */
+table.widefat {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+table.widefat th, table.widefat td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+table.widefat thead {
+    background-color: #f7f7f7;
+}
+
+table.widefat tr:hover {
+    background-color: #f0f8ff;
+}
+
+/* ---------------------------------
+    Modal
+---------------------------------- */
+#usaalo-country-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 400px;
+    max-width: 90%;
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+
+#usaalo-brand-modal, #usaalo-model-modal {
+    padding: 20px;
+}
+
+#usaalo-country-modal form p {
+    margin-bottom: 15px;
+}
+
+#usaalo-country-modal input[type="text"] {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#usaalo-country-modal .cancel-country {
+    background-color: #e0e0e0;
+    border-color: #ccc;
+    color: #333;
+}
+
+#usaalo-country-modal .cancel-country:hover {
+    background-color: #ccc;
+}
+
+/* ---------------------------------
+    Select2
+---------------------------------- */
+.select2-container .select2-selection--single {
+    height: 36px !important;
+    line-height: 36px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+}
+
+/* ---------------------------------
+    Responsive
+---------------------------------- */
+@media(max-width: 480px) {
+    #usaalo-country-modal {
+        width: 95%;
+        padding: 15px;
+    }
+
+    table.widefat th, table.widefat td {
+        padding: 6px;
+    }
+}
+
+/* ====== Brands & Models ====== */
+
+/* ====== Overlay general ====== */
+.usaalo-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 9998;
+}
+
+/* ====== Modal general ====== */
+.usaalo-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 400px;
+    max-width: 95%;
+    background: #fff;
+    border-radius: 8px;
+    /* padding: 20px; */
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+
+.usaalo-modal form p {
+    margin-bottom: 15px;
+}
+
+.usaalo-modal input[type="text"],
+.usaalo-modal select {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.usaalo-modal .cancel-country,
+.usaalo-modal .cancel-brand,
+.usaalo-modal .cancel-model {
+    background-color: #e0e0e0;
+    border-color: #ccc;
+    color: #333;
+}
+
+.usaalo-modal .cancel-country:hover,
+.usaalo-modal .cancel-brand:hover,
+.usaalo-modal .cancel-model:hover {
+    background-color: #ccc;
+}
+
+/* ====== Responsive ====== */
+@media(max-width: 480px) {
+    .usaalo-modal {
+        width: 95%;
+        padding: 15px;
+    }
+
+    table.widefat th, table.widefat td {
+        padding: 6px;
+    }
+}
+
+.dataTables_wrapper .dataTables_length select {
+  width: 4rem !important;
+}
+
+.wrap .button{
+    margin-bottom: 1.5rem;
+}
+
+.button.delete-country,.button.delete-model,.button.delete-brand,.button.deleted-plan{
+    margin-left: 0.5rem;
+}
+.filters{   
+    margin: 1rem;
+    text-align: center;
+}
+
+/* Contenedor del modal */
+.usaalo-modal .usaalo-modal-content {
+  background: #fff;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* máximo alto de pantalla */
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+/* Header fijo */
+.usaalo-modal .usaalo-header {
+  padding: 15px 20px;
+  background: #f5f5f5;
+  flex-shrink: 0; /* que no se achique */
+  border-bottom: 1px solid #ddd;
+}
+
+/* Contenido con scroll */
+.usaalo-modal .usaalo-form {
+  padding: 20px;
+  overflow-y: auto;
+  flex-grow: 1; /* ocupa todo el espacio disponible */
+}
+
+/* Footer fijo */
+.usaalo-modal .usaalo-footer {
+  padding: 15px 20px;
+  background: #f5f5f5;
+  flex-shrink: 0; /* que no se achique */
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.usaalo-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+.usaalo-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #9ca3af;
+}
+.usaalo-close:hover {
+  color: #111827;
+}
+
+/* Formulario */
+.usaalo-form {
+  padding: 20px;
+}
+.usaalo-form label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+  color: #374151;
+}
+.usaalo-form input[type="text"],
+.usaalo-form input[type="number"],
+.usaalo-form textarea,
+.usaalo-form select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.usaalo-form input:focus,
+.usaalo-form select:focus,
+.usaalo-form textarea:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+/* Grillas */
+.usaalo-grid {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.usaalo-grid > div {
+  flex: 1;
+}
+
+/* Switch moderno */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0;
+  right: 0; bottom: 0;
+  background-color: #d1d5db;
+  border-radius: 9999px;
+  transition: .3s;
+}
+.slider:before {
+  content: "";
+  position: absolute;
+  height: 18px; width: 18px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+.switch input:checked + .slider {
+  background-color: #2563eb;
+}
+.switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Radio Cards */
+.radio-card {
+  display: inline-block;
+  margin-right: 16px;
+}
+.radio-card input {
+  display: none;
+}
+.radio-content {
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  min-width: 140px;
+  text-align: center;
+}
+.radio-card input:checked + .radio-content {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.radio-content strong {
+  display: block;
+  font-size: 1rem;
+  color: #111827;
+}
+.radio-content p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 4px 0 0;
+}
+
+/* Rango dinámico */
+.plan-range-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.plan-range-group input {
+  flex: 1;
+}
+.remove-range {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+.remove-range:hover {
+  background: #dc2626;
+}
+
+/* Footer */
+.usaalo-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+.usaalo-footer .button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.button-primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+}
+.button-primary:hover {
+  background: #1d4ed8;
+}
+.cancel-plan {
+  background: #f3f4f6;
+  border: none;
+}
+.cancel-plan:hover {
+  background: #e5e7eb;
+}
+
+#todos-check-icon {
+  font-size: 18px;
+  font-weight: bold;
+  vertical-align: middle;
+  transition: opacity 0.3s;
+}
+
+
+/* Animación */
+@keyframes fadeIn {
+  from {opacity: 0; transform: translate(-50%, -48%);}
+  to {opacity: 1; transform: translate(-50%, -50%);}
+}
+
+.country-flag {
+    width: 1.5rem;
+    height: auto;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+}
+
+/* Opciones seleccionadas (en el contenedor de selección) */
+.select2-selection__rendered .country-flag {
+    width: 1.5rem;
+    height: auto;
+    margin-right: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Ajuste general de las opciones del dropdown */
+.select2-results__option .country-flag {
+    width: 1.5rem;
+    height: auto;
+    margin-right: 0.5rem;
+}
