@@ -205,4 +205,5 @@ class USAALO_Cache {
             'products'    => $prices
         ];
     }
+    
 }

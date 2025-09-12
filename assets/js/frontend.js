@@ -96,7 +96,7 @@ jQuery(document).ready(function($){
         const selectedDate = new Date(startDateInput.value);
         selectedDate.setHours(0, 0, 0, 0); // ignorar hora también
 
-        if (selectedDate <= today) {
+        if (selectedDate < today) {
             showMessage('La fecha de inicio no puede ser anterior a hoy', 'error');
             // reset a hoy
             startDateInput.value = new Date().toISOString().split('T')[0];
@@ -110,16 +110,18 @@ jQuery(document).ready(function($){
 
 
     function updateEndDate() {
-        let startDate = document.getElementById('start_date').value;
-        let numDays = parseInt(document.getElementById('num_days').value);
+        if(document.getElementById('start_date')){
+            let startDate = document.getElementById('start_date').value;
+            let numDays = parseInt(document.getElementById('num_days').value);
 
-        if (startDate && numDays > 0) {
-            let start = new Date(startDate);
-            let end = new Date(start.getTime() + (numDays + 1) * 24 * 60 * 60 * 1000); // restamos 1 porque el primer día ya cuenta
-            let yyyy = end.getFullYear();
-            let mm = String(end.getMonth() + 1).padStart(2, '0');
-            let dd = String(end.getDate()).padStart(2, '0');
-            document.getElementById('end_date').value = `${yyyy}-${mm}-${dd}`;
+            if (startDate && numDays > 0) {
+                let start = new Date(startDate);
+                let end = new Date(start.getTime() + (numDays + 1) * 24 * 60 * 60 * 1000); // restamos 1 porque el primer día ya cuenta
+                let yyyy = end.getFullYear();
+                let mm = String(end.getMonth() + 1).padStart(2, '0');
+                let dd = String(end.getDate()).padStart(2, '0');
+                document.getElementById('end_date').value = `${yyyy}-${mm}-${dd}`;
+            }
         }
     }
 
@@ -127,70 +129,172 @@ jQuery(document).ready(function($){
     updateEndDate();
 
     // Actualizar cada vez que cambien start_date o num_days
-    document.getElementById('start_date').addEventListener('change', updateEndDate);
-    document.getElementById('num_days').addEventListener('input', updateEndDate);
+    if(document.getElementById('start_date')){
+        document.getElementById('start_date').addEventListener('change', updateEndDate);
+        document.getElementById('num_days').addEventListener('input', updateEndDate);
+    }
 
 
         
-    function getPrices(countryCodes, dias, simFisica = false) {
-        const products = USAALO_Frontend.products || {};
-        let candidates = [];
+    /**
+ * getBestProducts
+ * @param {string[]} countryCodes - array de códigos país (ej: ['US','CA'])
+ * @param {number} dias - número de días
+ * @param {object} opts - opciones: { greedyThreshold: number, maxCountriesForMask: number }
+ * @returns {Object} { total_price: number, products: [ { product_id,name,price,price_per_day,countries } ] }
+ */
+function getPrices(countryCodes, dias, opts = {}) {
+    const productsObj = USAALO_Frontend && USAALO_Frontend.products ? USAALO_Frontend.products : {};
+    const products = Object.values(productsObj);
+    const greedyThreshold = opts.greedyThreshold ?? 20; // si >20 candidatos usamos greedy
+    const maxCountriesForMask = opts.maxCountriesForMask ?? 30; // límite por bitwise (32-bit JS)
 
-        // Filtrar productos por países seleccionados
-        Object.values(products).forEach(p => {
-            const matches = p.countries.filter(c => countryCodes.includes(c.code));
-            if (matches.length) {
-                candidates.push({
-                    ...p,
-                    coverage: matches.length,
-                    matches: matches
-                });
+    // Normalizar códigos únicos
+    const uniqueCodes = Array.from(new Set(countryCodes.map(c => String(c).toUpperCase())));
+    if (!uniqueCodes.length) return { total_price: 0, products: [] };
+    if (uniqueCodes.length > maxCountriesForMask) {
+        console.warn('Many countries selected — using greedy fallback due to bitmask limits.');
+    }
+
+    // Map código => índice bit
+    const codeIndex = {};
+    uniqueCodes.forEach((c, i) => codeIndex[c] = i);
+    const fullMask = uniqueCodes.length <= maxCountriesForMask ? ((1 << uniqueCodes.length) - 1) : null;
+    const daysQty = Math.max(1, parseInt(dias) || 1);
+
+    // Generar lista de candidatos que cubran al menos 1 country
+    let candidates = [];
+    for (const p of products) {
+        if (!p || !Array.isArray(p.countries)) continue;
+        // matches: items of p.countries that exist in uniqueCodes
+        const matches = p.countries.filter(c => {
+            const code = (c.code || c).toString().toUpperCase();
+            return uniqueCodes.includes(code);
+        }).map(c => ({ code: (c.code || c).toString().toUpperCase(), raw: c }));
+
+        if (matches.length === 0) continue;
+
+        // calcular price per day: buscar rango que contenga `dias`
+        let pricePerDay = parseFloat(p.base_price || 0);
+        if (p.type === 'variable' && Array.isArray(p.ranges) && p.ranges.length) {
+            const found = p.ranges.find(r => (Number(dias) >= Number(r.min) && Number(dias) <= Number(r.max)));
+            if (found) pricePerDay = parseFloat(found.price);
+            else if (typeof p.min_price !== 'undefined') pricePerDay = parseFloat(p.min_price);
+        }
+
+        const totalCost = pricePerDay * daysQty;
+
+        // máscara (si se puede)
+        let pmask = 0;
+        if (fullMask !== null) {
+            for (const m of matches) {
+                const idx = codeIndex[m.code];
+                if (typeof idx === 'number') pmask |= (1 << idx);
             }
+        }
+
+        candidates.push({
+            product: p,
+            matches,
+            pmask,
+            pricePerDay,
+            totalCost
         });
+    }
 
-        if (!candidates.length) return { total_price: 0, products: [] };
+    if (candidates.length === 0) return { total_price: 0, products: [] };
 
-        // Ordenar por cobertura y precio mínimo
-        candidates.sort((a, b) => (b.coverage - a.coverage) || (a.min_price - b.min_price));
-        const maxCoverage = candidates[0].coverage;
-        candidates = candidates.filter(p => p.coverage === maxCoverage);
+    // Si hay demasiados candidatos, recortar por cobertura y precio para DP
+    if (candidates.length > greedyThreshold || fullMask === null) {
+        // Ordenar por cobertura desc, precio asc y tomar top greedyThreshold
+        candidates.sort((a,b) => (b.matches.length - a.matches.length) || (a.pricePerDay - b.pricePerDay));
+        candidates = candidates.slice(0, greedyThreshold);
+        // Usaremos fallback greedy (pero intentamos DP si tenemos mask)
+    }
 
-        let total = 0;
-        let list = [];
+    // Si tenemos máscaras válidas, intentar DP (optimal)
+    if (fullMask !== null) {
+        const nMask = 1 << uniqueCodes.length;
+        // dp[mask] = { cost, count, items: [indices] } or null
+        const dp = new Array(nMask).fill(null);
+        dp[0] = { cost: 0, count: 0, items: [] };
 
-        candidates.forEach(p => {
-            let precioBase = p.base_price;
-
-            if (p.type === 'variable' && p.ranges.length) {
-                for (const r of p.ranges) {
-                    if (dias >= r.min && dias <= r.max) {
-                        precioBase = r.price;
-                        break;
-                    }
+        for (let i = 0; i < candidates.length; i++) {
+            const c = candidates[i];
+            // iterar máscaras en orden ascendente copia snapshot para evitar usar actualizaciones del mismo ciclo
+            const snapshot = dp.slice();
+            for (let mask = 0; mask < nMask; mask++) {
+                if (!snapshot[mask]) continue;
+                const newmask = mask | c.pmask;
+                const newCost = snapshot[mask].cost + c.totalCost;
+                const newCount = snapshot[mask].count + 1;
+                const prev = dp[newmask];
+                if (!prev || newCost < prev.cost || (newCost === prev.cost && newCount < prev.count)) {
+                    dp[newmask] = {
+                        cost: newCost,
+                        count: newCount,
+                        items: snapshot[mask].items.concat(i)
+                    };
                 }
             }
+        }
 
-            // ✅ Ajustar precio si es SIM física
-            if (simFisica && p.shipping_cost) {
-                precioBase += parseFloat(p.shipping_cost); // asumimos que shipping_cost viene del JSON
-            }
-
-            const precioTotal = precioBase * Math.max(1, dias);
-            total += precioTotal;
-
-            list.push({
-                product_id: p.product_id,
-                name: p.name,
-                price: precioTotal,
-                countries: p.matches
-            });
-        });
-
-        return {
-            total_price: total,
-            products: list
-        };
+        const result = dp[fullMask];
+        if (result) {
+            const selected = result.items.map(i => candidates[i]);
+            const out = selected.map(s => ({
+                product_id: s.product.product_id ?? s.product.product_id ?? s.product.id ?? null,
+                name: s.product.name,
+                price: Math.round(s.totalCost * 100) / 100,
+                price_per_day: Math.round(s.pricePerDay * 100) / 100,
+                countries: s.matches.map(m => m.code)
+            }));
+            return { total_price: Math.round(result.cost * 100) / 100, products: out };
+        }
+        // si no encontró cobertura completa con el recorte, caemos a greedy abajo
     }
+
+    // FALLBACK GREEDY (cubre lo máximo posible, preferencia por cobertura y precio)
+    // iterar: elegir producto con más países restantes, tiebreaker menor totalCost
+    const neededSet = new Set(uniqueCodes);
+    const chosen = [];
+    let total = 0;
+
+    while (neededSet.size > 0) {
+        // recalcular matches por países aún no cubiertos
+        candidates.forEach(c => {
+            c.currentMatches = c.matches.map(m => m.code).filter(cd => neededSet.has(cd));
+            c.currentCoverage = c.currentMatches.length;
+        });
+        // filtrar candidatos que cubren al menos 1 país restante
+        const possible = candidates.filter(c => c.currentCoverage > 0);
+        if (possible.length === 0) break;
+        possible.sort((a,b) => (b.currentCoverage - a.currentCoverage) || (a.totalCost - b.totalCost));
+        const sel = possible[0];
+        chosen.push(sel);
+        total += sel.totalCost;
+        // eliminar países cubiertos
+        sel.currentMatches.forEach(cd => neededSet.delete(cd));
+        // remover ese candidato para no reusar (opcional)
+        candidates = candidates.filter(c => c !== sel);
+    }
+
+    const output = chosen.map(s => ({
+        product_id: s.product.product_id ?? s.product.id ?? null,
+        name: s.product.name,
+        price: Math.round(s.totalCost * 100)/100,
+        price_per_day: Math.round(s.pricePerDay * 100)/100,
+        countries: s.matches.map(m => m.code)
+    }));
+
+    return { total_price: Math.round(total * 100) / 100, products: output };
+}
+
+
+
+
+
+
 
     // ============================
     // Cálculo instantáneo de precio
@@ -199,7 +303,8 @@ jQuery(document).ready(function($){
         let countries = $('#country').val()||[];
         if(!countries.length) return;
 
-        const simFisica = $('input[name="sim_type"]:checked').val() === 'fisica';
+        const simType = $('input[name="sim_type"]:checked').val();
+        const simFisica = simType === 'sim';
 
         if(!validateDates()) return;
 
@@ -208,18 +313,34 @@ jQuery(document).ready(function($){
         let end = $('#end_date').val();
         if(start && end) days = (new Date(end) - new Date(start))/(1000*60*60*24);
 
-        // Mostrar "cargando" mientras llega el precio
+        // Mostrar "cargando"
         $('#usaalo-summary').fadeOut(100);
-        $('#usaalo-price').fadeOut(150,function(){ $(this).text(('0,00')+' '+USAALO_Frontend.currency_symbol).fadeIn(200); });
+        $('#usaalo-price').fadeOut(150,function(){
+            $(this).text(('0,00')+' '+USAALO_Frontend.currency_symbol).fadeIn(200);
+        });
 
-        let total = 0;
+        const data = getPrices(countries, days);
+        let total = parseFloat(data.total_price) || 0;
 
-        const data = getPrices(countries, days, simFisica);
+        // ✅ sumar costo de envío si SIM física
+        if(simFisica && USAALO_Frontend.shipping_cost > 0){
+            total += parseFloat(USAALO_Frontend.shipping_cost);
+        }
 
-        updateSummary({data:{total: data.total_price.toFixed(2), days: days}});
+        // if (simFisica) {
+        //     // const deliveryCountry = $('#delivery_country').val() || 'CO';
+        //     if (USAALO_Frontend.shipping_costs[deliveryCountry]) {
+        //         total += parseFloat(USAALO_Frontend.shipping_costs[deliveryCountry]);
+        //     }
+        // }
 
+        updateSummary({
+            data: {
+                total: total.toFixed(2),
+                days: days
+            }
+        });
     }
-
 
     // ============================
     // Actualizar resumen
@@ -282,9 +403,15 @@ jQuery(document).ready(function($){
                 let flags = activeCountries.map(c => `<img class="flag" src="https://flagcdn.com/${c.toLowerCase()}.svg">`).join(' ');
                 html += `<label class="sim-option tooltip">
                             <input type="radio" name="sim_type" value="${type}">
-                            ${icon} ${label}
-                            <span class="tooltip-text">Disponible en: ${flags}</span>
-                        </label>`;
+                            ${icon} ${label}`;
+                            USAALO_Frontend.shipping_cost
+                            if(type === 'sim'){
+                                html += `<span class="tooltip-text">Costo adicional de envio: ${USAALO_Frontend.shipping_cost} ${USAALO_Frontend.currency_symbol}<br>Disponible en:<br>${flags}</span>`;
+                            }else{
+                                html += `<span class="tooltip-text">Disponible en: ${flags}</span>`;
+                            }
+                            
+                        html += `</label>`;
             } else {
                 html += `<label class="sim-option disabled tooltip">
                             <input type="radio" disabled>
@@ -320,7 +447,7 @@ jQuery(document).ready(function($){
 
         // Recalcular cotización al cambiar
         $('input[name="sim_type"]').on('change', function(){
-            if(currentStep===totalSteps) calculateQuote();
+            calculateQuote();
         });
     }
 
@@ -359,11 +486,70 @@ jQuery(document).ready(function($){
         showMessage('Cotización confirmada. Se enviaría al checkout con todos los datos.', 'success');
     });
 
+    function checkoutQuote() {
+        let countries = $('#country').val() || [];
+        let days = parseInt($('#num_days').val());
+        let simFisica = $('input[name="sim_type"]:checked').val() === 'sim';
+
+        let result = getPrices(countries, days);
+        if (!result.products.length) {
+            alert('No hay productos disponibles');
+            return;
+        }
+
+        let countryNames = {};
+        $('#country option:selected').each(function() {
+            countryNames[$(this).val()] = $(this).text();
+        });
+
+        // 🔥 Loader moderno
+        $('#usaalo-loader').removeClass('hidden');
+
+        $.ajax({
+            url: USAALO_Frontend.ajaxurl,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'usaalo_add_multiple_to_cart',
+                nonce: USAALO_Frontend.nonce,
+                products: result.products,
+                countries: countryNames,
+                days: days,
+                brand: $('#brand option:selected').text(),
+                model: $('#model option:selected').text(),
+                sim: simFisica ? 'SIM' : 'eSIM',
+                start_date: $('#start_date').val(),
+                end_date: $('#end_date').val(),
+                services: $('input[name="services[]"]:checked').map((i,el)=>$(el).val()).get()
+            },
+            success: function(res){
+                $('#usaalo-loader').addClass('hidden');
+                if(res.success){
+                    // ✅ Redirigir directo al checkout
+                    window.location.href = res.data.checkout_url;
+                } else {
+                    alert(res.data.message || 'Error al procesar la cotización');
+                }
+            },
+            error: function(xhr, status, error){
+                $('#usaalo-loader').addClass('hidden');
+                console.error(xhr.responseText);
+                alert('Error de conexión con el servidor');
+            }
+        });
+    }
+
+
+
+
+    $('#usaalo-quote').on('submit', (e)=>{
+        e.preventDefault();
+        checkoutQuote()
+    })
     // ============================
     // Eventos globales
     // ============================
     $('#country, #model, #start_date, #num_days').on('change', calculateQuote);
     $('#num_days').on('keyup', calculateQuote);
-    $('input[name="sim_type"]').on('click', calculateQuote);
 
 });

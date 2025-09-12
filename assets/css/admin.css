@@ -210,7 +210,7 @@ table.widefat tr:hover {
     margin-bottom: 1.5rem;
 }
 
-.button.delete-country,.button.delete-model,.button.delete-brand,.button.deleted-plan{
+.button.delete-country,.button.delete-model,.button.delete-brand,.button.delete-plan{
     margin-left: 0.5rem;
 }
 .filters{   

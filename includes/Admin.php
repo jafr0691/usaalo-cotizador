@@ -10,6 +10,7 @@ class USAALO_Admin {
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
         // Hook al eliminar un producto
         add_action('before_delete_post', [self::class, 'delete_product_country_records']);
+        add_action('wp_ajax_get_plan_data', [$this, 'ajax_get_plan_data']);
 
         // Helpers: carga si no existe
         if ( ! class_exists('USAALO_Helpers') ) {
@@ -118,6 +119,13 @@ class USAALO_Admin {
         wp_enqueue_script('usaalo-datatables');
         wp_enqueue_script('usaalo-admin');
 
+        // precargar regiones + países
+        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_countries_regions')) {
+            $countries_regions = $this->helpers::get_countries_regions();
+        } else {
+            $countries_regions = [];
+        }
+
         // Pasar datos útiles al JS: ajaxurl, nonce, traducciones e información del hook actual
         wp_localize_script('usaalo-admin', 'USAALO_Admin', [
             'ajaxurl' => admin_url('admin-ajax.php'),
@@ -128,9 +136,12 @@ class USAALO_Admin {
                 'deleted' => __('Eliminado correctamente', 'usaalo-cotizador'),
                 'confirm_delete' => __('¿Seguro que deseas eliminar este elemento?', 'usaalo-cotizador'),
             ],
+            'countries_regions' => $countries_regions,
+            'currency_symbol' => get_woocommerce_currency_symbol(),
         ]);
 
     }
+    
 
 
     public static function delete_product_country_records($post_id) {
@@ -147,6 +158,61 @@ class USAALO_Admin {
         );
     }
 
+    public static function ajax_get_plan_data() {
+        global $wpdb;
+
+        $table_product_country = $wpdb->prefix . 'usaalo_product_country';
+        $table_countries       = $wpdb->prefix . 'usaalo_countries';
+
+        // 🔹 Total de países en la tabla usaalo_countries
+        $total_countries = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_countries");
+
+        $args = [
+            'post_type'      => 'product',
+            'posts_per_page' => -1,
+            'post_status'    => ['publish','draft'],
+            'tax_query'      => [
+                [
+                    'taxonomy' => 'product_cat',
+                    'field'    => 'slug',
+                    'terms'    => 'sim',
+                ]
+            ]
+        ];
+        $query = new WP_Query($args);
+
+        $data = [];
+
+        foreach ($query->posts as $post) {
+            $wc_product = wc_get_product($post->ID);
+            if (!$wc_product) continue;
+
+            $rows = $wpdb->get_results($wpdb->prepare("
+                SELECT c.name 
+                FROM $table_product_country pc
+                INNER JOIN $table_countries c ON c.id = pc.country_id
+                WHERE pc.product_id = %d
+            ", $wc_product->get_id()));
+
+            $country_names = $rows ? wp_list_pluck($rows, 'name') : [];
+            $countries_str = $country_names ? implode(', ', $country_names) : '';
+
+            $data[] = [
+                'id'              => $wc_product->get_id(),
+                'image'           => wp_get_attachment_url($wc_product->get_image_id()),
+                'name'            => $wc_product->get_name(),
+                'typeProduct'     => $wc_product->get_type(), // simple | variable
+                'countries'       => $countries_str,         // Texto completo
+                'countries_list'  => $country_names,         // Array
+                'countries_count' => count($country_names),  // Cantidad
+                'total_countries' => $total_countries,       // 🔹 Total global
+                'price'           => $wc_product->get_price(),
+                'active'          => $wc_product->get_status() === 'publish',
+            ];
+        }
+
+        wp_send_json_success($data);
+    }
 
     /* ---------- Renderers de página ---------- */
 

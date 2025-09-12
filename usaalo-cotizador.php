@@ -30,6 +30,7 @@ require_once USAALO_PATH . 'includes/admin.php';
 require_once USAALO_PATH . 'includes/frontend.php';
 require_once USAALO_PATH . 'includes/ajax.php';
 require_once USAALO_PATH . 'includes/class-usaalo-cache.php';
+require_once USAALO_PATH . 'includes/WC.php';
 
 // Activación del plugin
 register_activation_hook(__FILE__, ['USAALO_Installer', 'activate']);
@@ -41,7 +42,7 @@ register_deactivation_hook(__FILE__, ['USAALO_Installer', 'deactivate']);
 
 // Inicializar clases según el contexto (admin o frontend)
 add_action('init', function() {
-    USAALO_Cache::build_cache();
+    // USAALO_Cache::build_cache();
     if (is_admin()) {
         if (class_exists('USAALO_Admin')) {
             new USAALO_Admin();
@@ -53,5 +54,11 @@ add_action('init', function() {
     if (class_exists('USAALO_Ajax')) {
         new USAALO_Ajax();
     }
+    if (class_exists('USAALO_Ajax')) {
+        new USAALO_Checkout_Fields();
+    }
 });
+
+
+
 

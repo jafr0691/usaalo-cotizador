@@ -14,9 +14,6 @@
                 <div class="step active" id="step-1">
                     <label><?php _e('País(es)', 'usaalo-cotizador'); ?></label>
                     <select id="country" name="country[]" multiple style="width:100%">
-                        <?php foreach($countries as $c): ?>
-                            <option value="<?php echo esc_attr($c['code2'] ?? $c['code']); ?>"><?php echo esc_html($c['name']); ?></option>
-                        <?php endforeach; ?>
                     </select>
 
                     <label><?php _e('Marca', 'usaalo-cotizador'); ?></label>
@@ -73,6 +70,13 @@
                     <p class="btn-prev-next">
                         <button type="button" class="usaalo-back"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
                         <button type="submit" class="button button-primary"><?php _e('Confirmar y continuar al pago', 'usaalo-cotizador'); ?></button>
+                        <div id="usaalo-loader" class="usaalo-loader hidden">
+                            <div class="loader-content">
+                                <div class="spinner"></div>
+                                <p>Procesando tu cotización...</p>
+                            </div>
+                        </div>
+
                     </p>
                 </div>
                 <div class="precie-right">

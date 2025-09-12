@@ -1,12 +1,15 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 class Usaalo_Ajax {
 
     public function __construct() {
-        add_action('wp_ajax_usaalo_get_plan', [$this, 'ajax_get_plan']);
-        add_action('wp_ajax_usaalo_save_plan', [$this, 'ajax_save_plan']);
-        add_action('wp_ajax_usaalo_delete_plan', [$this, 'ajax_delete_plan']);
+        // add_action('wp_ajax_usaalo_get_plan', [$this, 'ajax_get_plan']);
+        // add_action('wp_ajax_usaalo_save_plan', [$this, 'ajax_save_plan']);
+        // add_action('wp_ajax_usaalo_delete_plan', [$this, 'ajax_delete_plan']);
 
         add_action('wp_ajax_get_countries', [$this, 'ajax_get_country_all']);
         add_action('wp_ajax_usaalo_get_country', [$this, 'ajax_get_country']);
@@ -32,13 +35,141 @@ class Usaalo_Ajax {
         add_action('wp_ajax_usaalo_get_models_by_country', [$this, 'usaalo_get_models_by_country_ajax']);
         add_action('wp_ajax_nopriv_usaalo_get_models_by_country', [$this, 'usaalo_get_models_by_country_ajax']);
 
-        add_action('wp_ajax_usaalo_bulk_delete', [$this, 'ajax_usaalo_bulk_delete']);
 
         add_action('wp_ajax_usaalo_save_wc_product', [$this, 'ajax_save_wc_product']);
 
         add_action('wp_ajax_get_countries_regions', [$this, 'ajax_get_countries_regions']);
 
+        // add_action('wp_ajax_get_plan_data', [$this, 'ajax_get_plan_data']);
+        add_action('wp_ajax_get_product_data', [$this, 'ajax_get_product_data']);
+        add_action('wp_ajax_delete_products_with_countries', [$this, 'ajax_delete_products_with_countries']);
+
+
+        add_action('wp_ajax_usaalo_bulk_delete', [$this, 'ajax_usaalo_bulk_delete']);
+
     }
+
+
+    // public function ajax_get_plan_data(){
+    //     check_ajax_referer('usaalo_admin_nonce','nonce');
+    //     if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'), 403);
+    //     // Verificar si el método existe en la clase
+    //     if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_plan_data')) {
+    //         $productos = USAALO_Helpers::get_plan_datar();
+    //         if ($productos) {
+    //             return wp_send_json_success($productos);
+    //         }
+    //     }
+
+    //     wp_send_json_error(__('No encontrado','usaalo-cotizador'));
+    // }
+
+    
+
+
+
+
+
+    public function ajax_delete_products_with_countries() {
+        check_ajax_referer('usaalo_admin_nonce','nonce');
+        global $wpdb;
+
+        $product_ids = isset($_POST['id']) ? (array) $_POST['id'] : [];
+        if (empty($product_ids)) {
+            wp_send_json_error(__('No se recibieron productos para eliminar.'));
+        }
+
+        $table_product_country = $wpdb->prefix . 'usaalo_product_country';
+        $deleted = [];
+
+        foreach ($product_ids as $product_id) {
+            $product_id = intval($product_id);
+            if (!$product_id) continue;
+
+            // 1️⃣ Borrar relación países-producto
+            $wpdb->delete(
+                $table_product_country,
+                [ 'product_id' => $product_id ],
+                [ '%d' ]
+            );
+
+            // 2️⃣ Borrar el producto de WooCommerce (eliminar permanentemente)
+            $deleted_post = wp_delete_post($product_id, true);
+
+            if ($deleted_post) {
+                $deleted[] = $product_id;
+            }
+        }
+
+        if (!empty($deleted)) {
+            wp_send_json_success(__('Productos eliminados correctamente.','usaalo-cotizador'));
+        } else {
+            wp_send_json_error(__('No se pudo eliminar ningún producto.','usaalo-cotizador'));
+        }
+    }
+
+
+    public function ajax_get_product_data() {
+        check_ajax_referer('usaalo_admin_nonce','nonce');
+        global $wpdb;
+
+        $product_id = isset($_POST['product_id']) ? intval($_POST['product_id']) : 0;
+        if (!$product_id) {
+            wp_send_json_error(__('ID de producto no válido','usaalo-cotizador'));
+        }
+
+        $product = wc_get_product($product_id);
+        if (!$product) {
+            wp_send_json_error(__('Producto no encontrado','usaalo-cotizador'));
+        }
+
+        // ===== Países =====
+        $table = $wpdb->prefix . 'usaalo_product_country';
+        $countries = $wpdb->get_col($wpdb->prepare(
+            "SELECT country_id FROM $table WHERE product_id = %d",
+            $product_id
+        ));
+
+        // ===== Datos generales =====
+        $data = [
+            'id'          => $product->get_id(),
+            'name'        => $product->get_name(),
+            'description' => $product->get_description(),
+            'type'        => $product->get_type(), // simple | variable
+            'price'       => $product->get_price(),
+            'active'      => ($product->get_status() === 'publish'),
+            'countries'   => $countries,
+            'image_id'    => get_post_thumbnail_id($product_id),
+            'image_url'     => wp_get_attachment_url($product->get_image_id()),
+        ];
+
+        // ===== RANGOS si es variable =====
+        if ($product->is_type('variable')) {
+            $ranges = [];
+            foreach ($product->get_children() as $vid) {
+                $variation = wc_get_product($vid);
+                $attrs = $variation->get_attributes();
+
+                // extraer rango de días
+                $label = reset($attrs);
+                if ($label && preg_match('/^(\d+)-(\d+)$/', $label, $m)) {
+                    $ranges[] = [
+                        'min_days' => (int) $m[1],
+                        'max_days' => (int) $m[2],
+                        'price'    => (float) $variation->get_regular_price(),
+                    ];
+                }
+            }
+            $data['ranges'] = $ranges;
+        }
+
+        wp_send_json_success($data);
+    }
+
+
+
+
+
 
     public function ajax_save_wc_product() {
         check_ajax_referer('usaalo_admin_nonce','nonce');
@@ -513,40 +644,7 @@ class Usaalo_Ajax {
 
     /* ------------------------------ Planes de los productos por pais ------------------------------ */
 
-    public function ajax_get_plan() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        // Sugerencia: implementar usaalo_get_plan en ajax.php/helpers.php
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers','usaalo_get_plan')) {
-            $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-            $plan = USAALO_Helpers::usaalo_get_plan($id);
-            if ($plan) return wp_send_json_success($plan);
-        }
-        wp_send_json_error(__('No encontrado','usaalo-cotizador'));
-    }
 
-    public function ajax_save_plan() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        // Sugerencia: implementar usaalo_save_plan en ajax.php/helpers.php
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers','usaalo_save_plan')) {
-            $result = USAALO_Helpers::usaalo_save_plan($_POST);
-            if ($result) return wp_send_json_success(__('Plan guardado','usaalo-cotizador'));
-        }
-        wp_send_json_error(__('Error al guardar','usaalo-cotizador'));
-    }
-
-    public function ajax_delete_plan() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'),403);
-        // Sugerencia: implementar usaalo_delete_plan en ajax.php/helpers.php
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers','usaalo_delete_plan')) {
-            $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
-            $result = USAALO_Helpers::usaalo_delete_plan($id);
-            if ($result) return wp_send_json_success(__('Plan eliminado','usaalo-cotizador'));
-        }
-        wp_send_json_error(__('Error al eliminar','usaalo-cotizador'));
-    }
 
 
 

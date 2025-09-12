@@ -450,31 +450,64 @@ class USAALO_Helpers {
 
 
     /* ------------------------------ Planes producto ------------------------------ */
-    // Obtener un plan por ID
-    public static function usaalo_get_plan($plan_id) {
-        $wpdb = self::db();
-        $table = $wpdb->prefix . 'usaalo_plans';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $plan_id), ARRAY_A);
-    }
+    
 
-    // Guardar o actualizar un plan
-    public static function usaalo_save_plan($data) {
-        $wpdb = self::db();
-        $table = $wpdb->prefix . 'usaalo_plans';
-        if (isset($data['id']) && $data['id']) {
-            return $wpdb->update($table, $data, ['id' => intval($data['id'])]);
-        } else {
-            $wpdb->insert($table, $data);
-            return $wpdb->insert_id;
-        }
-    }
+    // public static function get_plan_data() {
+    //     global $wpdb;
 
-    // Eliminar un plan
-    public static function usaalo_delete_plan($plan_id) {
-        $wpdb = self::db();
-        $table = $wpdb->prefix . 'usaalo_plans';
-        return $wpdb->delete($table, ['id' => intval($plan_id)]);
-    }
+    //     $table_product_country = $wpdb->prefix . 'usaalo_product_country';
+    //     $table_countries       = $wpdb->prefix . 'usaalo_countries';
+
+    //     // 🔹 Total de países en la tabla usaalo_countries
+    //     $total_countries = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_countries");
+
+    //     $args = [
+    //         'post_type'      => 'product',
+    //         'posts_per_page' => -1,
+    //         'post_status'    => ['publish','draft'],
+    //         'tax_query'      => [
+    //             [
+    //                 'taxonomy' => 'product_cat',
+    //                 'field'    => 'slug',
+    //                 'terms'    => 'sim',
+    //             ]
+    //         ]
+    //     ];
+    //     $query = new WP_Query($args);
+
+    //     $data = [];
+
+    //     foreach ($query->posts as $post) {
+    //         $wc_product = wc_get_product($post->ID);
+    //         if (!$wc_product) continue;
+
+    //         $rows = $wpdb->get_results($wpdb->prepare("
+    //             SELECT c.name 
+    //             FROM $table_product_country pc
+    //             INNER JOIN $table_countries c ON c.id = pc.country_id
+    //             WHERE pc.product_id = %d
+    //         ", $wc_product->get_id()));
+
+    //         $country_names = $rows ? wp_list_pluck($rows, 'name') : [];
+    //         $countries_str = $country_names ? implode(', ', $country_names) : '';
+
+    //         $data[] = [
+    //             'id'              => $wc_product->get_id(),
+    //             'image'           => wp_get_attachment_url($wc_product->get_image_id()),
+    //             'name'            => $wc_product->get_name(),
+    //             'typeProduct'     => $wc_product->get_type(), // simple | variable
+    //             'countries'       => $countries_str,         // Texto completo
+    //             'countries_list'  => $country_names,         // Array
+    //             'countries_count' => count($country_names),  // Cantidad
+    //             'total_countries' => $total_countries,       // 🔹 Total global
+    //             'price'           => $wc_product->get_price(),
+    //             'active'          => $wc_product->get_status() === 'publish',
+    //         ];
+    //     }
+
+    //     return $data;
+    // }
+
 
 
 
@@ -538,119 +571,119 @@ class USAALO_Helpers {
 
 
     /**
- * Obtener precios por tipo de SIM (sim física y esim).
- * - Lee opción 'usaalo_sim_prices' si existe (array con keys 'sim' y 'esim')
- * - Si no existe, sim = coste de envío por defecto; esim = promedio de meta '_usaalo_servicio_precio_esim'
- *
- * @return array ['sim' => float, 'esim' => float]
- */
-public static function get_sim_prices(): array {
-    // 1) Intentar leer opción (admin)
-    $opt = get_option('usaalo_sim_prices', false);
-    if (is_array($opt) && (isset($opt['sim']) || isset($opt['esim']))) {
-        $sim_val  = isset($opt['sim']) ? floatval($opt['sim']) : 0.0;
-        $esim_val = isset($opt['esim']) ? floatval($opt['esim']) : 0.0;
-        return [
-            'sim'  => round($sim_val, 2),
-            'esim' => round($esim_val, 2),
-        ];
-    }
-
-    // 2) Si no hay opción, calcular valores por defecto
-    $sim_price = 0.0;
-    $esim_price = 0.0;
-
-    // 2.a) obtener coste de envío por defecto para SIM física
-    $sim_price = self::get_default_shipping_cost();
-
-    // 2.b) calcular precio promedio de _usaalo_servicio_precio_esim en productos publicados
-    $wpdb = self::db();
-    $meta_key = '_usaalo_servicio_precio_esim';
-
-    $rows = $wpdb->get_col(
-        $wpdb->prepare(
-            "SELECT pm.meta_value
-             FROM {$wpdb->prefix}postmeta pm
-             INNER JOIN {$wpdb->prefix}posts p ON pm.post_id = p.ID
-             WHERE pm.meta_key = %s
-               AND p.post_type = 'product'
-               AND p.post_status = 'publish'
-             ",
-            $meta_key
-        )
-    );
-
-    $sum = 0.0;
-    $count = 0;
-    if (!empty($rows)) {
-        foreach ($rows as $val) {
-            $v = floatval($val);
-            if ($v > 0) {
-                $sum += $v;
-                $count++;
-            }
+     * Obtener precios por tipo de SIM (sim física y esim).
+     * - Lee opción 'usaalo_sim_prices' si existe (array con keys 'sim' y 'esim')
+     * - Si no existe, sim = coste de envío por defecto; esim = promedio de meta '_usaalo_servicio_precio_esim'
+     *
+     * @return array ['sim' => float, 'esim' => float]
+     */
+    public static function get_sim_prices(): array {
+        // 1) Intentar leer opción (admin)
+        $opt = get_option('usaalo_sim_prices', false);
+        if (is_array($opt) && (isset($opt['sim']) || isset($opt['esim']))) {
+            $sim_val  = isset($opt['sim']) ? floatval($opt['sim']) : 0.0;
+            $esim_val = isset($opt['esim']) ? floatval($opt['esim']) : 0.0;
+            return [
+                'sim'  => round($sim_val, 2),
+                'esim' => round($esim_val, 2),
+            ];
         }
-    }
 
-    if ($count > 0) {
-        $esim_price = round($sum / $count, 2);
-    } else {
-        // fallback: 0 (puedes cambiar a un valor por defecto)
+        // 2) Si no hay opción, calcular valores por defecto
+        $sim_price = 0.0;
         $esim_price = 0.0;
-    }
 
-    return [
-        'sim'  => round(floatval($sim_price), 2),
-        'esim' => round(floatval($esim_price), 2),
-    ];
-}
+        // 2.a) obtener coste de envío por defecto para SIM física
+        $sim_price = self::get_default_shipping_cost();
 
-/**
- * Helper privado: intenta obtener un coste de envío por defecto (primera tarifa válida encontrada).
- * Devuelve 0.0 si no puede determinar un coste.
- *
- * @return float
- */
-private static function get_default_shipping_cost(): float {
-    if (!class_exists('WC_Shipping_Zones') || !function_exists('WC')) {
-        return 0.0;
-    }
+        // 2.b) calcular precio promedio de _usaalo_servicio_precio_esim en productos publicados
+        $wpdb = self::db();
+        $meta_key = '_usaalo_servicio_precio_esim';
 
-    $shipping_cost = 0.0;
+        $rows = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT pm.meta_value
+                FROM {$wpdb->prefix}postmeta pm
+                INNER JOIN {$wpdb->prefix}posts p ON pm.post_id = p.ID
+                WHERE pm.meta_key = %s
+                AND p.post_type = 'product'
+                AND p.post_status = 'publish'
+                ",
+                $meta_key
+            )
+        );
 
-    // Buscar entre zonas y métodos la primera tarifa con costo > 0
-    try {
-        $zones = WC_Shipping_Zones::get_zones();
-
-        foreach ($zones as $zone) {
-            // cada $zone es un array con 'id'
-            if (empty($zone['id'])) continue;
-            $zone_obj = new WC_Shipping_Zone($zone['id']);
-            $zone_methods = $zone_obj->get_shipping_methods();
-
-            foreach ($zone_methods as $method) {
-                if (isset($method->enabled) && $method->enabled === 'yes') {
-                    // intentar obtener opción 'cost' (para flat_rate u otros)
-                    if (method_exists($method, 'get_option')) {
-                        $cost = floatval($method->get_option('cost', 0));
-                    } else {
-                        $cost = floatval($method->settings['cost'] ?? 0);
-                    }
-
-                    if ($cost > 0) {
-                        $shipping_cost = $cost;
-                        break 2; // salimos al encontrar la primera tarifa válida
-                    }
+        $sum = 0.0;
+        $count = 0;
+        if (!empty($rows)) {
+            foreach ($rows as $val) {
+                $v = floatval($val);
+                if ($v > 0) {
+                    $sum += $v;
+                    $count++;
                 }
             }
         }
-    } catch (Exception $e) {
-        // silent fail: devolver 0
-        $shipping_cost = 0.0;
+
+        if ($count > 0) {
+            $esim_price = round($sum / $count, 2);
+        } else {
+            // fallback: 0 (puedes cambiar a un valor por defecto)
+            $esim_price = 0.0;
+        }
+
+        return [
+            'sim'  => round(floatval($sim_price), 2),
+            'esim' => round(floatval($esim_price), 2),
+        ];
     }
 
-    return round($shipping_cost, 2);
-}
+    /**
+     * Helper privado: intenta obtener un coste de envío por defecto (primera tarifa válida encontrada).
+     * Devuelve 0.0 si no puede determinar un coste.
+     *
+     * @return float
+     */
+    private static function get_default_shipping_cost(): float {
+        if (!class_exists('WC_Shipping_Zones') || !function_exists('WC')) {
+            return 0.0;
+        }
+
+        $shipping_cost = 0.0;
+
+        // Buscar entre zonas y métodos la primera tarifa con costo > 0
+        try {
+            $zones = WC_Shipping_Zones::get_zones();
+
+            foreach ($zones as $zone) {
+                // cada $zone es un array con 'id'
+                if (empty($zone['id'])) continue;
+                $zone_obj = new WC_Shipping_Zone($zone['id']);
+                $zone_methods = $zone_obj->get_shipping_methods();
+
+                foreach ($zone_methods as $method) {
+                    if (isset($method->enabled) && $method->enabled === 'yes') {
+                        // intentar obtener opción 'cost' (para flat_rate u otros)
+                        if (method_exists($method, 'get_option')) {
+                            $cost = floatval($method->get_option('cost', 0));
+                        } else {
+                            $cost = floatval($method->settings['cost'] ?? 0);
+                        }
+
+                        if ($cost > 0) {
+                            $shipping_cost = $cost;
+                            break 2; // salimos al encontrar la primera tarifa válida
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // silent fail: devolver 0
+            $shipping_cost = 0.0;
+        }
+
+        return round($shipping_cost, 2);
+    }
 
 
 
@@ -792,30 +825,96 @@ private static function get_default_shipping_cost(): float {
     /**
      * Obtiene todos los países con disponibilidad de productos
      */
-    public static function get_countries_with_availability(): array {
+    public static function get_countries_with_availability(bool $only_available = false): array {
         $wpdb = self::db();
-        $table_countries = $wpdb->prefix . 'usaalo_countries';
+
+        $table_countries       = $wpdb->prefix . 'usaalo_countries';
         $table_product_country = $wpdb->prefix . 'usaalo_product_country';
-        $table_posts = $wpdb->prefix . 'posts';
+        $table_posts           = $wpdb->prefix . 'posts';
+        $table_term_rel        = $wpdb->prefix . 'term_relationships';
+        $table_term_tax        = $wpdb->prefix . 'term_taxonomy';
+        $table_terms           = $wpdb->prefix . 'terms';
 
-        $countries = $wpdb->get_results("SELECT id, code, name FROM $table_countries ORDER BY name ASC", ARRAY_A);
+        // 🔹 Obtenemos países y verificamos si tienen productos publicados en categoría SIM
+        $query = "
+            SELECT c.id, c.code, c.name,
+                CASE WHEN COUNT(p.ID) > 0 THEN 1 ELSE 0 END AS disponible
+            FROM $table_countries c
+            LEFT JOIN $table_product_country pc ON c.id = pc.country_id
+            LEFT JOIN $table_posts p 
+                ON p.ID = pc.product_id 
+                AND p.post_type = 'product' 
+                AND p.post_status = 'publish'
+            LEFT JOIN $table_term_rel tr ON tr.object_id = p.ID
+            LEFT JOIN $table_term_tax tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+            LEFT JOIN $table_terms t ON t.term_id = tt.term_id
+                AND tt.taxonomy = 'product_cat'
+                AND (t.slug = 'sim' OR t.name = 'Sim' OR t.name = 'SIM')
+            GROUP BY c.id, c.code, c.name
+            ORDER BY c.name ASC
+        ";
 
-        if (!$countries) return [];
+        $countries = $wpdb->get_results($query, ARRAY_A);
 
-        $available_id = $wpdb->get_col("
-            SELECT DISTINCT pc.country_id
-            FROM $table_product_country pc
-            INNER JOIN $table_posts p ON pc.product_id = p.ID
-            WHERE p.post_type='product' AND p.post_status='publish'
-        ");
+        if (!$countries) {
+            return [];
+        }
 
+        // Procesar resultados
         foreach ($countries as &$c) {
-            $c['disponible'] = in_array($c['id'], $available_id);
-            $c['mensaje'] = $c['disponible'] ? '' : __('Próximamente','usaalo-cotizador');
+            $c['disponible'] = (bool) $c['disponible'];
+            $c['mensaje']    = $c['disponible'] ? '' : __('Próximamente', 'usaalo-cotizador');
+        }
+
+        // Solo devolver los disponibles si se solicita
+        if ($only_available) {
+            $countries = array_filter($countries, fn($c) => $c['disponible']);
         }
 
         return $countries;
     }
+
+
+
+    public static function get_shipping_cost( $country_code = 'CO' ) {
+        if ( ! class_exists('WooCommerce') ) return 0;
+
+        // Usar país del cotizador o default de WooCommerce
+        $country_code = $country_code ?: get_option('woocommerce_default_country');
+
+        // Crear paquete simulado
+        $package = [
+            'destination' => [
+                'country'  => $country_code,
+                'state'    => '',
+                'postcode' => '',
+                'city'     => '',
+                'address'  => '',
+                'address_2'=> '',
+            ],
+            'contents' => [
+                [
+                    'data'     => new WC_Product_Simple(), // Producto ficticio
+                    'quantity' => 1,
+                ],
+            ],
+            'contents_cost'    => 0,
+            'applied_coupons'  => [],
+            'user'             => 0, // Cliente no logeado
+        ];
+
+        // Forzar cálculo
+        $shipping = WC_Shipping::instance();
+        $shipping->calculate_shipping( [ $package ] );
+
+        $packages = $shipping->get_packages();
+        if ( empty($packages[0]['rates']) ) return 0;
+
+        // Tomar primera tarifa disponible
+        $rate = reset($packages[0]['rates']);
+        return floatval($rate->get_cost());
+    }
+
 
 
     public static function get_productos_por_country($country_ids): array {

@@ -303,6 +303,13 @@
                     paging: true,
                     searching: true, // usamos filtros personalizados
                     info: true,
+                    // Añadir checkbox en el header
+                    initComplete: function () {
+                        // Agregar el checkbox de seleccionar todos en el header
+                        $('#usaalo-countries-table thead th').eq(0).html(
+                            '<input type="checkbox" id="country-usaalo-check-all">'
+                        );
+                    }
                 });
 
                 // 🔎 Filtro por columnas personalizadas
@@ -346,19 +353,211 @@
          *   PLANS
          * ========================= */
         initPlans: function() {
-            // if ($.fn.DataTable) {
-            //     $('#usaalo-plans-table').DataTable({
-            //         paging: true,
-            //         searching: true,
-            //         info: false,
-            //         language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-            //         data: "id",
-            //         render: function(data) {
-            //                 return '<input type="checkbox" class="usaalo-check" value="'+data+'">';
-            //             },
-            //         orderable: false
-            //     });
-            // }
+
+
+            
+            if ($.fn.DataTable) {
+
+                    
+                $('#usaalo-plans-table').DataTable({
+                    ajax: {
+                        url: USAALO_Admin.ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: "get_plan_data",
+                            nonce: USAALO_Admin.nonce
+                        },
+                        dataSrc: function(json){
+                            console.log(json)
+                            return json.success ? json.data : [];
+                        }
+                    },
+                    columns: [
+                        { 
+                            data: "id",
+                            render: function(data){
+                                return `<input type="checkbox" class="usaalo-check" value="${data}"/>`;
+                            },
+                            orderable: false
+                        },
+                        { 
+                            data: "image",
+                            orderable: false,
+                            render: function(data){
+                                if(!data) return '-';
+                                return `<img src="${data}" style="max-width:50px;max-height:50px"/>`;
+                            }
+                        },
+                        { data: "name" },
+                        { 
+                            data: 'id',
+                            render: function(data, type, row) {
+                                return `#${row.id} - ${row.name}`;
+                            }
+                        },
+                        { 
+                            data: "typeProduct"
+                        },
+                        {
+                            data: "countries",
+                            render: function(data, type, row) {
+                                if (!row.countries_count || row.countries_count === 0) {
+                                    return '-';
+                                }
+
+                                if (row.countries_count === row.total_countries) {
+                                    return '<span class="badge bg-info">Todos los países</span>';
+                                }
+
+                                if (row.countries_count > 5) {
+                                    let visible = row.countries_list.slice(0,5).join(", ");
+                                    let hidden  = row.countries_list.slice(5).join(", ");
+                                    return `
+                                        ${visible}
+                                        <span class="more-countries" style="display:none;">, ${hidden}</span>
+                                        <a href="#" class="toggle-countries">...leer más</a>
+                                    `;
+                                }
+
+                                return data;
+                            }
+                        },
+                        { 
+                            data: "price",
+                            render: function(data){
+                                return data ? data+' '+USAALO_Admin.currency_symbol : '-';
+                            }
+                        },
+                        { 
+                            data: "active",
+                            render: function(val){
+                                return val ? "Sí" : "No";
+                            }
+                        },
+                        { 
+                            data: "id",
+                            render: function(data){
+                                return `
+                                    <button class="button edit-plan" data-id="${data}">Editar</button>
+                                    <button class="button delete-plan" data-id="${data}">Eliminar</button>
+                                `;
+                            },
+                            orderable: false
+                        }
+                    ],
+                    order: [[2,'asc']],
+                    responsive: true,
+                    processing: false,
+                    serverSide: false,
+                    autoWidth: true,
+                    language: {
+                        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json"
+                    },
+                    initComplete: function () {
+                        // Insertar checkbox en cabecera
+                        $('#usaalo-plans-table thead th').eq(0).html(
+                            '<input type="checkbox" id="plan-usaalo-check-all">'
+                        );
+
+                        // Manejar "seleccionar todos"
+                        $('#plan-usaalo-check-all').on('change', function(){
+                            let checked = $(this).is(':checked');
+                            $('.usaalo-check').prop('checked', checked);
+                        });
+
+                        // Si un checkbox de fila cambia → actualizar el estado del header
+                        $('#usaalo-plans-table tbody').on('change', '.usaalo-check', function(){
+                            let allChecked = $('.usaalo-check').length === $('.usaalo-check:checked').length;
+                            $('#plan-usaalo-check-all').prop('checked', allChecked);
+                        });
+                    }
+                });
+
+
+                $('#usaalo-plans-table').on('click', '.toggle-countries', function(e) {
+                    e.preventDefault();
+                    let $link = $(this);
+                    let $hidden = $link.prev('.more-countries');
+
+                    if ($hidden.is(':visible')) {
+                        $hidden.hide();
+                        $link.text('...leer más');
+                    } else {
+                        $hidden.show();
+                        $link.text('leer menos');
+                    }
+                });
+
+
+                $(document).on('click', '.edit-plan', function(){
+                    let id = $(this).data('id');
+
+                    $.post(USAALO_Admin.ajaxurl, {
+                        action: 'get_product_data',
+                        nonce: USAALO_Admin.nonce,
+                        product_id: id
+                    }, function(res){
+                        console.log(res)
+                        if(!res.success){
+                            alert(res.data.message || 'Error al obtener producto');
+                            return;
+                        }
+
+                        let p = res.data;
+
+                        // General
+                        $('#product_id').val(p.id);
+                        $('#nameWC').val(p.name);
+                        $('#descriptionWC').val(p.description);
+
+                        // Tipo de producto (radios)
+                        $(`input[name="product_type"][value="${p.type}"]`).prop('checked', true).trigger('change');
+
+                        // Precio según tipo
+                        if (p.type === 'simple') {
+                            $('#simple_price').val(p.price);
+                            $('#max_price').val(''); // limpiar si es simple
+                        } else if (p.type === 'variable') {
+                            $('#max_price').val(p.price);
+                            $('#simple_price').val(''); // limpiar si es variable
+                        }
+
+                        // Activo
+                        $('input[name="active"]').prop('checked', p.active);
+
+                        // Imagen
+                        if (p.image_id && p.image_url) {
+                            $('#image_preview img').attr('src', p.image_url).css('display', 'block');
+                            $('#product_image_id').val(p.image_id);
+                        } else {
+                            $('#image_preview img').css('display', 'none');
+                            $('#product_image_id').val('false');
+                        }
+
+                        // Países (select2 múltiple)
+                        $('#countries-select').val(p.countries).trigger('change');
+
+                        // Rangos (si es variable)
+                        if (p.type === 'variable' && p.ranges) {
+                            $('#plan-ranges').empty();
+                            p.ranges.forEach((r, i) => {
+                                $('#plan-ranges').append(`
+                                    <div class="plan-range-group">
+                                        <input type="number" name="ranges[${i}][min_days]" value="${r.min_days}" readonly>
+                                        <input type="number" name="ranges[${i}][max_days]" value="${r.max_days}">
+                                        <input type="number" name="ranges[${i}][price]" value="${r.price}">
+                                    </div>
+                                `);
+                            });
+                        }
+
+                        // Abrir modal
+                        App.openModal('#usaalo-plan-modal', '#usaalo-plan-form', '#usaalo-plan-overlay');
+
+                    });
+                });
+
+            }
 
             const $form = $('#usaalo-plan-form');
 
@@ -498,54 +697,74 @@
         });
 
 
-
-
-
-
-
-function getFlagURL(code){ return 'https://flagcdn.com/'+code.toLowerCase()+'.svg'; }
-
+        function getFlagURL(code){ return 'https://flagcdn.com/'+code.toLowerCase()+'.svg'; }
 
         if ($.fn.select2) {
+
             let $select = $('#countries-select');
             let $modal = $select.closest('.usaalo-modal');
 
-            if (!$select.length) return;
+            if ($select.length) {
+                $select.select2({
+                    placeholder: "Selecciona países",
+                    width: '100%',
+                    closeOnSelect: false,
+                    allowClear: true,
+                    dropdownParent: $modal.length ? $modal : undefined,
+                    data: USAALO_Admin.countries_regions,
+                    matcher: function(params, data) {
+                        // sin búsqueda -> mostrar todo
+                        if ($.trim(params.term) === '') {
+                            return data;
+                        }
 
-            $select.select2({
-                placeholder: "Selecciona países",
-                width: '100%',
-                closeOnSelect: false,
-                allowClear: true,
-                dropdownParent: $modal.length ? $modal : undefined,
-                ajax: {
-                    url: USAALO_Admin.ajaxurl,
-                    type: 'POST',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            action: 'get_countries_regions',
-                            nonce: USAALO_Admin.nonce,
-                            search: params.term || '',
-                            product_id: $('#product_id').val() || 0
-                        };
+                        let term = params.term.toLowerCase();
+
+                        // Si es grupo (region)
+                        if (data.children && data.children.length) {
+                            // si la región coincide -> devolver todo el grupo con sus hijos
+                            if (data.text.toLowerCase().includes(term)) {
+                                return data;
+                            }
+
+                            // si alguno de los hijos coincide -> devolver solo los hijos que coincidan
+                            let filteredChildren = [];
+                            $.each(data.children, function(i, child) {
+                                if (child.text.toLowerCase().includes(term)) {
+                                    filteredChildren.push(child);
+                                }
+                            });
+
+                            if (filteredChildren.length) {
+                                let modifiedData = $.extend({}, data, true);
+                                modifiedData.children = filteredChildren;
+                                return modifiedData;
+                            }
+
+                            // nada coincide
+                            return null;
+                        }
+
+                        // si es hijo (país)
+                        if (data.text.toLowerCase().includes(term)) {
+                            return data;
+                        }
+
+                        return null;
                     },
-                    processResults: function(response) {
-                        return { results: response.data || [] };
+                    templateResult: function(state) {
+                        if (!state.id) return state.text;
+                        let flag = state.code ? `<img src="${getFlagURL(state.code)}" class="country-flag"/>` : '';
+                        return $(`<span>${flag} ${state.text}</span>`);
+                    },
+                    templateSelection: function(state) {
+                        if (!state.id) return state.text;
+                        let flag = state.code ? `<img src="${getFlagURL(state.code)}" class="country-flag"/>` : '';
+                        return $(`<span>${flag} ${state.text}</span>`);
                     }
-                },
-                templateResult: function(state) {
-                    if (!state.id) return state.text;
-                    let flag = state.code ? `<img src="${getFlagURL(state.code)}" class="country-flag"/>` : '';
-                    return $(`<span>${flag} ${state.text}</span>`);
-                },
-                templateSelection: function(state) {
-                    if (!state.id) return state.text;
-                    let flag = state.code ? `<img src="${getFlagURL(state.code)}" class="country-flag"/>` : '';
-                    return $(`<span>${flag} ${state.text}</span>`);
-                }
-    });
+                });
+            }
+
 
         }
 
@@ -581,23 +800,22 @@ function getFlagURL(code){ return 'https://flagcdn.com/'+code.toLowerCase()+'.sv
             mediaUploader.open();
         });
 
-
-
+        // Model
             this.crudEntity({
                 addBtn: '.add-plan',
-                editBtn: '.edit-plan',
-                deleteBtn: '.delete-plan',
                 cancelBtn: '.cancel-plan',
-                formSel: '#usaalo-plan-form',
+                formSel: 'false',
                 modalSel: '#usaalo-plan-modal',
                 overlaySel: '#usaalo-plan-overlay',
-                getAction: 'usaalo_get_plan',
-                saveAction: 'usaalo_save_plan',
-                deleteAction: 'usaalo_delete_plan',
-                tabla: 'usaalo_plan_country',
                 dataTable: 'usaalo-plans-table',
-                usaalo_check_all: '#plan-usaalo-check-all'
+                usaalo_check_all: '#plan-usaalo-check-all',
+                deleteBtn: '.delete-plan',
+                tabla: 'usaalo_product_country',
+                deleteAction: 'delete_products_with_countries',
+                editBtn: 'false',
             });
+
+
         },
 
         /* =========================
@@ -629,6 +847,7 @@ function getFlagURL(code){ return 'https://flagcdn.com/'+code.toLowerCase()+'.sv
                 $.post(USAALO_Admin.ajaxurl, {
                     action: cfg.deleteAction, id:$(this).data('id'), nonce:USAALO_Admin.nonce
                 }, function(res){
+                    console.log(res)
                     if (res.success) { alert(USAALO_Admin.i18n.deleted); location.reload(); }
                     else alert(res.data || 'Error');
                 }, 'json');
@@ -673,23 +892,28 @@ function getFlagURL(code){ return 'https://flagcdn.com/'+code.toLowerCase()+'.sv
                 if (!confirm("¿Seguro que quieres eliminar los registros seleccionados?")) {
                     return;
                 }
-
+                console.log(ids)
+                let action = "usaalo_bulk_delete";
+                if(cfg.deleteAction == 'delete_products_with_countries'){
+                    action = cfg.deleteAction
+                }
                 $.ajax({
                     url: USAALO_Admin.ajaxurl,
                     type: "POST",
                     data: {
-                        action: "usaalo_bulk_delete",
+                        action: action,
                         nonce: USAALO_Admin.nonce,
                         table: cfg.tabla, 
-                        ids: ids
+                        id: ids
                     },
                     success: function (response) {
+                        console.log(response)
                         if (response.success) {
-                            alert(response.data.message);
+                            alert(response.data);
                             $('#'+cfg.dataTable).DataTable().ajax.reload();
                             $('#usaalo-check-all').prop('checked', false); // resetear checkbox maestro
                         } else {
-                            alert(response.data.message);
+                            alert(response.data);
                         }
                     }
                 });

@@ -7,51 +7,18 @@
     <table id="usaalo-plans-table" class="widefat striped">
         <thead>
             <tr>
+                <th></th>
+                <th><?php _e('Imagen','usaalo-cotizador');?></th>
                 <th><?php _e('Nombre','usaalo-cotizador');?></th>
                 <th><?php _e('Producto WC','usaalo-cotizador');?></th>
-                <th><?php _e('Rangos de días','usaalo-cotizador');?></th>
+                <th><?php _e('Tipo','usaalo-cotizador');?></th>
+                <th><?php _e('Paises','usaalo-cotizador');?></th>
                 <th><?php _e('Precios','usaalo-cotizador');?></th>
                 <th><?php _e('Activo','usaalo-cotizador');?></th>
                 <th><?php _e('Acciones','usaalo-cotizador');?></th>
             </tr>
         </thead>
         <tbody>
-        
-        <?php if (empty($plans)): ?>
-            <tr>
-                <td colspan="6"><?php _e('No existen planes o productos.','usaalo-cotizador'); ?></td>
-            </tr>
-        <?php else: ?>
-            <?php foreach($plans as $p): ?>
-                <tr>
-                    <td><?php echo esc_html($p['name']); ?></td>
-                    <td><?php echo $p['wc_product_id'] ? esc_html(get_the_title($p['wc_product_id'])) : '-'; ?></td>
-                    <td>
-                        <?php
-                        if (!empty($p['ranges'])) {
-                            foreach ($p['ranges'] as $range) {
-                                echo esc_html($range['min_days'].'-'.$range['max_days']).'<br>';
-                            }
-                        }
-                        ?>
-                    </td>
-                    <td>
-                        <?php
-                        if (!empty($p['ranges'])) {
-                            foreach ($p['ranges'] as $range) {
-                                echo esc_html($range['price']).'<br>';
-                            }
-                        }
-                        ?>
-                    </td>
-                    <td><?php echo $p['active'] ? __('Sí','usaalo-cotizador') : __('No','usaalo-cotizador'); ?></td>
-                    <td>
-                        <button class="button edit-plan" data-id="<?php echo intval($p['id']); ?>"><?php _e('Editar','usaalo-cotizador');?></button>
-                        <button class="button delete-plan" data-id="<?php echo intval($p['id']); ?>"><?php _e('Eliminar','usaalo-cotizador');?></button>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        <?php endif; ?>
         </tbody>
     </table>
     <button class="button button-danger usaalo-delete-selected" data-table="usaalo_plan_country">
@@ -68,7 +35,6 @@
     <!-- Encabezado -->
     <div class="usaalo-header">
       <h2><?php _e('Editor de producto','usaalo-cotizador');?></h2>
-      <button type="button" class="usaalo-close">&times;</button>
     </div>
 
     <!-- Contenido con scroll -->
@@ -112,7 +78,7 @@
           <label class="switch">
             <input type="checkbox" name="Todos" id="todosPais" value="1">
             <span class="slider"></span>
-          </label>
+          </label style="width: 100px;">
           <span><?php _e(' Todos','usaalo-cotizador');?></span>
           <img id="todos-check-icon" src="<?php echo plugin_dir_url(__FILE__); ?>../../assets/img/icon-check.svg" style="display:none; width:18px; height:18px; margin-left:5px;" alt="Check">
         </label>
@@ -147,7 +113,7 @@
       <!-- Config simple -->
       <div id="simple-config" class="usaalo-config">
         <label><?php _e('Precio','usaalo-cotizador');?></label>
-        <input type="number" id="simple_price" name="simple_price" step="0.01" required>
+        <input type="number" id="simple_price" name="simple_price" step="0.01">
       </div>
 
       <!-- Config variable -->
@@ -156,14 +122,14 @@
         <div id="plan-ranges">
           <div class="plan-range-group">
             <input type="number" name="ranges[0][min_days]" placeholder="<?php _e('Desde','usaalo-cotizador');?>" min="1" step="1" inputmode="numeric" pattern="[0-9]*" value="1" readonly>
-            <input type="number" name="ranges[0][max_days]" placeholder="<?php _e('Hasta','usaalo-cotizador');?>" min="1" step="1" inputmode="numeric" pattern="[0-9]*" required>
-            <input type="number" name="ranges[0][price]" placeholder="<?php _e('Precio/día','usaalo-cotizador');?>" step="0.01" min="0" required>
+            <input type="number" name="ranges[0][max_days]" placeholder="<?php _e('Hasta','usaalo-cotizador');?>" min="1" step="1" inputmode="numeric" pattern="[0-9]*">
+            <input type="number" name="ranges[0][price]" placeholder="<?php _e('Precio/día','usaalo-cotizador');?>" step="0.01" min="0">
           </div>
         </div>
         <button type="button" class="button add-range"><?php _e('Agregar rango','usaalo-cotizador');?></button>
         <p>
           <label><?php _e('Precio a partir del último rango','usaalo-cotizador');?></label>
-          <input type="number" name="max_price" id="max_price" step="0.01" required>
+          <input type="number" name="max_price" id="max_price" step="0.01">
         </p>
       </div>
     </form>
