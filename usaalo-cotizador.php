@@ -13,6 +13,9 @@
 if (!defined('ABSPATH')) exit; // Evitar acceso directo
 
 // Definir constantes
+define( 'MSSQL_DSN', 'dblib:host=sql5110.site4now.net,1433;dbname=db_a9d2cf_usaaloapp' );
+define( 'MSSQL_USERNAME', 'db_a9d2cf_usaaloapp_admin' );
+define( 'MSSQL_PASSWORD', 'ujKVTXAE2za' );
 define('USAALO_PATH', plugin_dir_path(__FILE__));
 define('USAALO_URL', plugin_dir_url(__FILE__));
 define('USAALO_VERSION', '1.0.0');
@@ -31,6 +34,7 @@ require_once USAALO_PATH . 'includes/frontend.php';
 require_once USAALO_PATH . 'includes/ajax.php';
 require_once USAALO_PATH . 'includes/class-usaalo-cache.php';
 require_once USAALO_PATH . 'includes/WC.php';
+require_once USAALO_PATH . 'includes/class-usaalo-mssql-sync.php';
 
 // Activación del plugin
 register_activation_hook(__FILE__, ['USAALO_Installer', 'activate']);
@@ -54,8 +58,9 @@ add_action('init', function() {
     if (class_exists('USAALO_Ajax')) {
         new USAALO_Ajax();
     }
-    if (class_exists('USAALO_Ajax')) {
-        new USAALO_Checkout_Fields();
+    if (class_exists('WooCommerce')) {
+        new USAALO_Checkout_Fields(); // campos en checkout
+        new USAALO_MSSQL_Sync();      // sincronización MSSQL
     }
 });
 

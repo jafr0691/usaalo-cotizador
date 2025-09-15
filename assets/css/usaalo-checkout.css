@@ -1,0 +1,29 @@
+/* Campos obligatorios con * rojo */
+.woocommerce-checkout .form-row label.required:after {
+    content: " *";
+    color: red;
+}
+
+/* Inputs y selects */
+.woocommerce-checkout .form-row input,
+.woocommerce-checkout .form-row select,
+.woocommerce-checkout .form-row textarea {
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    border-radius: 6px;
+    width: 100%;
+    transition: border-color 0.3s;
+}
+
+.woocommerce-checkout .form-row input:focus,
+.woocommerce-checkout .form-row select:focus,
+.woocommerce-checkout .form-row textarea:focus {
+    border-color: #0073aa;
+    outline: none;
+}
+
+/* Checkboxes */
+.woocommerce-checkout .form-row input[type=checkbox] {
+    width: auto;
+    margin-right: 8px;
+}
