@@ -155,26 +155,6 @@ class USAALO_Checkout_Fields {
             'label' => __('Número de socio Puntos Colombia'),
         ], $checkout->get_value('puntos_colombia'));
 
-        // LifeMiles
-        woocommerce_form_field('lifemiles', [
-            'type' => 'text',
-            'label' => __('Número LifeMiles'),
-        ], $checkout->get_value('lifemiles'));
-
-        // Observaciones
-        woocommerce_form_field('observacion', [
-            'type' => 'textarea',
-            'label' => __('Observación'),
-        ], $checkout->get_value('observacion'));
-
-        // Valor plan cotizado (precargado)
-        woocommerce_form_field('valor_plan', [
-            'type' => 'text',
-            'label' => __('Valor plan cotizado'),
-            'required' => false,
-            'custom_attributes' => ['readonly' => 'readonly'],
-        ], $checkout->get_value('valor_plan'));
-
         // Checkboxes obligatorios
         woocommerce_form_field('responsabilidad', [
             'type' => 'checkbox',
@@ -230,7 +210,7 @@ class USAALO_Checkout_Fields {
      * Guardar en order meta
      */
     public function guardar_campos($order_id) {
-        $campos = ['tipo_id','documento_id','whatsapp','motivo_viaje','marca_telefono','modelo_telefono','imei','eid','en_crucero','llamada_entrante','es_agencia','nombre_agencia','asesor_comercial','puntos_colombia','lifemiles','observacion','valor_plan','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
+        $campos = ['tipo_id','documento_id','whatsapp','motivo_viaje','marca_telefono','modelo_telefono','imei','eid','en_crucero','llamada_entrante','es_agencia','nombre_agencia','asesor_comercial','puntos_colombia','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
 
         foreach ($campos as $campo) {
             if ( isset($_POST[$campo]) ) {
@@ -277,6 +257,13 @@ class USAALO_Checkout_Fields {
         $payment     = $order->get_payment_method_title();
         $order_total = $order->get_total();
         $order_sub   = $order->get_subtotal();
+
+        $custom_logo_id = get_theme_mod('custom_logo');
+        $logo_url = $custom_logo_id ? 
+            wp_get_attachment_image_url($custom_logo_id, 'full') : 
+            'https://grupozona.es/wp-content/uploads/2024/06/logo-usaalo.png';
+
+
 
         // Keys posibles donde puede estar guardado el id de Puntos Colombia (adáptalo si usas otro)
         $pco_meta_keys = ['PCO_id','_PCO_id','puntos_colombia_id'];
@@ -430,7 +417,7 @@ class USAALO_Checkout_Fields {
             <div style='font-family:Arial, sans-serif; background:#f6f6f6; padding:20px;'>
                 <table width='600' align='center' cellpadding='0' cellspacing='0' style='background:#fff;border-radius:8px;overflow:hidden;'>
                     <tr><td style='background:{$c_dark};padding:18px;text-align:center;'>
-                        <img src='https://grupozona.es/wp-content/uploads/2024/06/logo-usaalo.png' alt='UsaAlo' style='max-width:180px;'>
+                        <img src='{$logo_url}' alt='UsaAlo' style='max-width:180px;'>
                     </td></tr>
                     <tr><td style='padding:18px;text-align:center;background:{$c_orange};color:#fff;font-weight:700;font-size:18px;'>{$title}</td></tr>
                     <tr><td style='padding:20px;color:{$c_gray};font-size:14px;line-height:1.6;'>{$content_html}</td></tr>

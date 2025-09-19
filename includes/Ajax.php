@@ -1,9 +1,6 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 class Usaalo_Ajax {
 
     public function __construct() {
@@ -440,19 +437,100 @@ class Usaalo_Ajax {
         wp_send_json_error(__('No encontrado','usaalo-cotizador'));
     }
 
-    public function ajax_get_sim_servicios_all(){
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'), 403);
-        // Verificar si el método existe en la clase
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_sim_servicios')) {
-            $servicios = USAALO_Helpers::get_sim_servicios();
-            if ($servicios) {
-                return wp_send_json_success($servicios);
-            }
+    public function ajax_get_sim_servicios_all() {
+        check_ajax_referer('usaalo_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Permiso denegado'], 403);
         }
 
-        wp_send_json_error(__('No encontrado','usaalo-cotizador'));
+        global $wpdb;
+
+        // Parámetros de DataTables
+        $draw   = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
+        $start  = isset($_POST['start']) ? intval($_POST['start']) : 0;
+        $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
+        $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
+
+        $table_device_country = $wpdb->prefix . 'usaalo_device_country';
+        $table_device_config  = $wpdb->prefix . 'usaalo_device_config';
+        $table_models         = $wpdb->prefix . 'usaalo_models';
+        $table_brands         = $wpdb->prefix . 'usaalo_brands';
+        $table_countries      = $wpdb->prefix . 'usaalo_countries';
+
+        // Base SQL
+        $sql = "
+            FROM {$table_models} m
+            INNER JOIN {$table_brands} b ON b.id = m.brand_id
+            CROSS JOIN {$table_countries} c
+            LEFT JOIN {$table_device_config} cfg ON cfg.model_id = m.id
+            LEFT JOIN {$table_device_country} dc 
+                ON dc.model_id = m.id AND dc.country_id = c.id
+        ";
+
+        // Filtrado por búsqueda
+        $where = [];
+        if (!empty($search)) {
+            $like = '%' . $wpdb->esc_like($search) . '%';
+            $where[] = $wpdb->prepare("(c.name LIKE %s OR b.name LIKE %s OR m.name LIKE %s)", $like, $like, $like);
+        }
+
+        if ($where) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+
+        // Total registros antes del filtro
+        $recordsTotal = $wpdb->get_var("SELECT COUNT(*) {$sql}");
+
+        // Orden
+        $order_column_index = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 0;
+        $order_dir = isset($_POST['order'][0]['dir']) && $_POST['order'][0]['dir'] === 'desc' ? 'DESC' : 'ASC';
+
+        $columns_map = [
+            0 => 'c.name',
+            1 => 'b.name',
+            2 => 'm.name',
+            3 => 'sim_supported',
+            4 => 'esim_supported',
+            5 => 'data_supported',
+            6 => 'voice_supported',
+            7 => 'sms_supported'
+        ];
+        $order_by = isset($columns_map[$order_column_index]) ? $columns_map[$order_column_index] : 'c.name';
+
+        // Query principal con límite
+        $sql_select = "
+            SELECT 
+                c.id AS country_id,
+                m.id AS model_id,
+                c.name AS country_name,
+                b.name AS brand_name,
+                m.name AS model_name,
+                COALESCE(dc.sim_supported, cfg.sim_supported, 1)   AS sim_supported,
+                COALESCE(dc.esim_supported, cfg.esim_supported, 1) AS esim_supported,
+                COALESCE(dc.voice_supported, cfg.voice_supported, 0) AS voice_supported,
+                COALESCE(dc.sms_supported, cfg.sms_supported, 0)    AS sms_supported,
+                COALESCE(dc.data_supported, cfg.data_supported, 1)  AS data_supported
+            {$sql}
+            ORDER BY {$order_by} {$order_dir}
+            LIMIT %d, %d
+        ";
+        $rows = $wpdb->get_results($wpdb->prepare($sql_select, $start, $length), ARRAY_A);
+
+        // Registros filtrados
+        $recordsFiltered = $wpdb->get_var("SELECT COUNT(*) {$sql}");
+
+        // Enviar respuesta JSON
+        wp_send_json([
+            "draw" => $draw,
+            "recordsTotal" => intval($recordsTotal),
+            "recordsFiltered" => intval($recordsFiltered),
+            "data" => $rows
+        ]);
     }
+
+
+
 
     public function ajax_update_service(){
         check_ajax_referer('usaalo_admin_nonce','nonce');
@@ -472,7 +550,6 @@ class Usaalo_Ajax {
 
 
     /* ------------------------------ Countrys ------------------------------ */
-
     public function ajax_get_country_all() {
         check_ajax_referer('usaalo_admin_nonce','nonce');
         if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'), 403);
@@ -480,6 +557,7 @@ class Usaalo_Ajax {
         if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_countries')) {
             $country = USAALO_Helpers::get_countries();
             if ($country) {
+                $country = $country ? $country : [];
                 return wp_send_json_success($country);
             }
         }
@@ -497,6 +575,7 @@ class Usaalo_Ajax {
         if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'usaalo_get_country')) {
             $country = USAALO_Helpers::usaalo_get_country($id);
             if ($country) {
+                $country = $country ? $country : [];
                 return wp_send_json_success($country);
             }
         }
@@ -534,17 +613,21 @@ class Usaalo_Ajax {
 
     public function ajax_get_brands_all() {
         check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'), 403);
-        // Verificar si el método existe en la clase
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_brands')) {
-            $brands = USAALO_Helpers::get_brands();
-            if ($brands) {
-                return wp_send_json_success($brands);
-            }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json([ 'data' => [] ]); // devolver array vacío para DataTables
         }
 
-        wp_send_json_error(__('No encontrado','usaalo-cotizador'));
+        $brands = [];
+        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_brands')) {
+            $brands = USAALO_Helpers::get_brands();
+            $brands = $brands ? $brands : [];
+        }
+
+        // Siempre devolver en formato 'data' para DataTables
+        wp_send_json([ 'data' => $brands ]);
     }
+
 
     public function ajax_get_brand() {
         check_ajax_referer('usaalo_admin_nonce','nonce');
@@ -552,7 +635,11 @@ class Usaalo_Ajax {
         if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers','usaalo_get_brand')) {
             $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
             $brand = USAALO_Helpers::usaalo_get_brand($id);
-            if ($brand) return wp_send_json_success($brand);
+            
+            if ($brand){
+                $brand = $brand ? $brand : [];
+                return wp_send_json_success($brand);
+            } 
         }
         wp_send_json_error(__('No encontrado','usaalo-cotizador'));
     }
@@ -591,18 +678,67 @@ class Usaalo_Ajax {
     /* ------------------------------ Funciones de accion de los modelos ------------------------------ */
 
     public function ajax_get_models_all() {
-        check_ajax_referer('usaalo_admin_nonce','nonce');
-        if (!current_user_can('manage_options')) return wp_send_json_error(__('Permiso denegado','usaalo-cotizador'), 403);
-        // Verificar si el método existe en la clase
-        if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers', 'get_models')) {
-            $moldels = USAALO_Helpers::get_models();
-            if ($moldels) {
-                return wp_send_json_success($moldels);
-            }
+        check_ajax_referer('usaalo_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Permiso denegado'], 403);
         }
 
-        wp_send_json_error(__('No encontrado','usaalo-cotizador'));
+        global $wpdb;
+
+        $draw   = isset($_POST['draw']) ? intval($_POST['draw']) : 1;
+        $start  = isset($_POST['start']) ? intval($_POST['start']) : 0;
+        $length = isset($_POST['length']) ? intval($_POST['length']) : 10;
+        $search = isset($_POST['search']['value']) ? sanitize_text_field($_POST['search']['value']) : '';
+
+        $table_models = $wpdb->prefix . 'usaalo_models';
+        $table_brands = $wpdb->prefix . 'usaalo_brands';
+
+        $sql = "FROM {$table_models} m INNER JOIN {$table_brands} b ON b.id = m.brand_id";
+        
+        $where = [];
+        if (!empty($search)) {
+            $like = '%' . $wpdb->esc_like($search) . '%';
+            $where[] = $wpdb->prepare("(m.name LIKE %s OR m.slug LIKE %s OR b.name LIKE %s)", $like, $like, $like);
+        }
+        if ($where) $sql .= " WHERE " . implode(" AND ", $where);
+
+        $recordsTotal = $wpdb->get_var("SELECT COUNT(*) {$sql}");
+        
+        $order_column_index = isset($_POST['order'][0]['column']) ? intval($_POST['order'][0]['column']) : 1;
+        $order_dir = isset($_POST['order'][0]['dir']) && $_POST['order'][0]['dir'] === 'desc' ? 'DESC' : 'ASC';
+
+        $columns_map = [
+            0 => 'm.id',
+            1 => 'b.name',
+            2 => 'm.name',
+            3 => 'm.slug',
+            4 => 'm.id'
+        ];
+        $order_by = isset($columns_map[$order_column_index]) ? $columns_map[$order_column_index] : 'b.name';
+
+        $sql_select = "
+            SELECT 
+                m.id,
+                b.name AS brand_name,
+                m.name,
+                m.slug
+            {$sql}
+            ORDER BY {$order_by} {$order_dir}
+            LIMIT %d, %d
+        ";
+        $rows = $wpdb->get_results($wpdb->prepare($sql_select, $start, $length), ARRAY_A);
+
+        $recordsFiltered = $wpdb->get_var("SELECT COUNT(*) {$sql}");
+
+        wp_send_json([
+            "draw" => $draw,
+            "recordsTotal" => intval($recordsTotal),
+            "recordsFiltered" => intval($recordsFiltered),
+            "data" => $rows
+        ]);
     }
+
 
     public function ajax_get_model() {
         check_ajax_referer('usaalo_admin_nonce','nonce');
@@ -610,7 +746,10 @@ class Usaalo_Ajax {
         if (class_exists('USAALO_Helpers') && method_exists('USAALO_Helpers','usaalo_get_model')) {
             $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
             $model = USAALO_Helpers::usaalo_get_model($id);
-            if ($model) return wp_send_json_success($model);
+            if ($model){
+                $model = $model ? $model : [];
+                return wp_send_json_success($model);
+            } 
         }
         wp_send_json_error(__('No encontrado','usaalo-cotizador'));
     }
@@ -660,7 +799,7 @@ class Usaalo_Ajax {
         }
 
         // Recoger datos del request
-        $table = sanitize_text_field(filter_input(INPUT_POST, 'table', FILTER_SANITIZE_STRING));
+        $table = sanitize_text_field($_POST['table'] ?? '');
         $ids   = isset($_POST['ids']) ? array_map('intval', (array) $_POST['ids']) : [];
 
         if (empty($table) || empty($ids)) {
@@ -694,8 +833,10 @@ class Usaalo_Ajax {
 
         $country_id = intval($_POST['country_id']);
         $products = USAALO_Helpers::get_products_by_country($country_id);
-
-        wp_send_json_success($products);
+        if($products){
+            $products = $products ? $products : [];
+            return wp_send_json_success($products);
+        }
     }
 
     function usaalo_get_models_by_country_ajax() {
@@ -707,7 +848,9 @@ class Usaalo_Ajax {
 
         $country_id = intval($_POST['country_id']);
         $models = USAALO_Helpers::get_models_by_country($country_id);
-
-        wp_send_json_success($models);
+        if($models){
+            $models = $models ? $models : [];
+            return wp_send_json_success($models);
+        }
     }
 }

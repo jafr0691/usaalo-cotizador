@@ -56,10 +56,14 @@ class USAALO_Helpers {
 
     // Obtener un país por código
     public static function usaalo_get_country($id) {
-        $wpdb = self::db();
+        global $wpdb;
         $table = $wpdb->prefix . 'usaalo_countries';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %s", $id), ARRAY_A);
+        return $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id),
+            ARRAY_A
+        );
     }
+
 
     // Guardar o actualizar un país
     public static function usaalo_save_country($data) {
@@ -346,16 +350,6 @@ class USAALO_Helpers {
         $table_brands         = $wpdb->prefix . 'usaalo_brands';
         $table_countries      = $wpdb->prefix . 'usaalo_countries';
 
-        // $country = sanitize_text_field($data['country'] ?? '');
-        // $brand   = sanitize_text_field($data['brand'] ?? '');
-        // $model   = sanitize_text_field($data['model'] ?? '');
-
-        // $where = [];
-        // if ($country) $where[] = $wpdb->prepare("c.name LIKE %s", "%$country%");
-        // if ($brand)   $where[] = $wpdb->prepare("b.name LIKE %s", "%$brand%");
-        // if ($model)   $where[] = $wpdb->prepare("m.name LIKE %s", "%$model%");
-
-
         $sql = "
             SELECT 
                 c.id AS country_id,
@@ -377,9 +371,7 @@ class USAALO_Helpers {
             ORDER BY c.name, b.name, m.name
         ";
 
-        // $where_sql = $where ? "WHERE " . implode(" AND ", $where) : "";
-
-        $results = $wpdb->get_results($sql, ARRAY_A);
+        $results = $wpdb->get_results($sql . " LIMIT 50", ARRAY_A);
 
         return $results;
     }
@@ -875,45 +867,40 @@ class USAALO_Helpers {
     }
 
 
-
     public static function get_shipping_cost( $country_code = 'CO' ) {
         if ( ! class_exists('WooCommerce') ) return 0;
 
-        // Usar país del cotizador o default de WooCommerce
-        $country_code = $country_code ?: get_option('woocommerce_default_country');
+        // Obtener todas las zonas de envío
+        $shipping_zones = WC_Shipping_Zones::get_zones();
 
-        // Crear paquete simulado
-        $package = [
-            'destination' => [
-                'country'  => $country_code,
-                'state'    => '',
-                'postcode' => '',
-                'city'     => '',
-                'address'  => '',
-                'address_2'=> '',
-            ],
-            'contents' => [
-                [
-                    'data'     => new WC_Product_Simple(), // Producto ficticio
-                    'quantity' => 1,
-                ],
-            ],
-            'contents_cost'    => 0,
-            'applied_coupons'  => [],
-            'user'             => 0, // Cliente no logeado
-        ];
+        $found_rates = [];
 
-        // Forzar cálculo
-        $shipping = WC_Shipping::instance();
-        $shipping->calculate_shipping( [ $package ] );
+        foreach ( $shipping_zones as $zone ) {
+            // Buscar la zona llamada SIM
+            if ( stripos($zone['zone_name'], 'SIM') !== false ) {
+                foreach ( $zone['shipping_methods'] as $method ) {
+                    if ( $method->enabled === 'yes' ) {
+                        // Capturar el costo del método
+                        if ( isset($method->cost) && $method->cost !== '' ) {
+                            $found_rates[] = floatval( $method->cost );
+                        } elseif ( isset($method->instance_settings['cost']) && $method->instance_settings['cost'] !== '' ) {
+                            $found_rates[] = floatval( $method->instance_settings['cost'] );
+                        }
+                    }
+                }
+            }
+        }
 
-        $packages = $shipping->get_packages();
-        if ( empty($packages[0]['rates']) ) return 0;
+        // Si no encuentra nada, devuelve -1 para depurar
+        if ( empty($found_rates) ) {
+            return -1;
+        }
 
-        // Tomar primera tarifa disponible
-        $rate = reset($packages[0]['rates']);
-        return floatval($rate->get_cost());
+        // Siempre el más barato
+        return min($found_rates);
     }
+
+
 
 
 

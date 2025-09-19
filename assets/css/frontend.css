@@ -71,6 +71,10 @@
     box-sizing: border-box;
 }
 
+#num_days {
+    max-width: 100% !important; /* ancho suficiente para 4 d¨ªgitos */
+}
+
 /* ========================
    Botones
 ======================== */
@@ -490,3 +494,13 @@ p.btn-prev-next>button { margin-top: 15px !important; }
   100% { transform: rotate(360deg); }
 }
 
+.select2-container--default .select2-search--inline .select2-search__field {
+    min-height: 28px !important;   /* altura mínima */
+    height: 28px !important;       /* altura fija para que no crezca */
+    line-height: 28px !important;  /* centra verticalmente el texto/placeholder */
+    padding: 0 6px !important;     /* espaciado horizontal */
+    margin: 0 !important;          /* sin márgenes extras */
+    resize: none !important;       /* evitar que el usuario cambie el tamaño */
+    overflow: hidden !important;   /* evitar scrollbars */
+    box-sizing: border-box;
+}

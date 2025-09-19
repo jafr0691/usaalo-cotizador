@@ -54,7 +54,9 @@
                         type: "POST",
                         data: { action: "get_countries", nonce: USAALO_Admin.nonce }
                     },
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                                emptyTable: "No se encontraron registros en la lista" 
+                            },
                     columns: [
                             { 
                                 data: "id",
@@ -96,7 +98,7 @@
                 this.value = this.value.replace(/[^a-zA-Z]/g, '').substr(0, 2);
             });
 
-            // Brand
+            // Country
             this.crudEntity({
                 addBtn: '.add-country',
                 editBtn: '.edit-country',
@@ -110,7 +112,8 @@
                 deleteAction: 'usaalo_delete_country',
                 tabla: 'usaalo_countries',
                 dataTable: 'usaalo-countries-table',
-                usaalo_check_all: '#country-usaalo-check-all'
+                usaalo_check_all: '#country-usaalo-check-all',
+                delete_selected: '.country.usaalo-delete-selected'
             });
 
         },
@@ -126,7 +129,9 @@
                         type: "POST",
                         data: { action: "get_brands", nonce: USAALO_Admin.nonce }
                     },
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                                emptyTable: "No se encontraron registros en la lista"
+                     },
                     columns: [
                             { 
                                 data: "id",
@@ -162,12 +167,19 @@
                 });
 
                 $('#usaalo-models-table').DataTable({
+                    processing: true,
+                    serverSide: true,
                     ajax: {
                         url: USAALO_Admin.ajaxurl,
                         type: "POST",
-                        data: { action: "get_models", nonce: USAALO_Admin.nonce }
+                        data: { action: "get_models", nonce: USAALO_Admin.nonce },
+                        error: function(xhr, error, thrown) {
+                            console.error("AJAX Error:", error, xhr.responseText);
+                        }
                     },
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                                emptyTable: "No se encontraron registros en la lista"
+                    },
                     columns: [
                             { 
                                 data: "id",
@@ -218,7 +230,8 @@
                 deleteAction: 'usaalo_delete_brand',
                 tabla: 'usaalo_brands',
                 dataTable: 'usaalo-brands-table',
-                usaalo_check_all: '#brand-usaalo-check-all'
+                usaalo_check_all: '#brand-usaalo-check-all',
+                delete_selected: '.brand.usaalo-delete-selected'
             });
 
             // Model
@@ -235,7 +248,8 @@
                 deleteAction: 'usaalo_delete_model',
                 tabla: 'usaalo_models',
                 dataTable: 'usaalo-models-table',
-                usaalo_check_all: '#model-usaalo-check-all'
+                usaalo_check_all: '#model-usaalo-check-all',
+                delete_selected: '.model.usaalo-delete-selected'
             });
         },
 
@@ -245,6 +259,8 @@
         initSimServicio: function() {
             if ($.fn.DataTable) {
                 let table = $('#sim_servicio_table').DataTable({
+                    processing: true,
+                    serverSide: true,
                     ajax: {
                         url: USAALO_Admin.ajaxurl,
                         type: "POST",
@@ -252,11 +268,14 @@
                             // Añadimos filtros personalizados
                             d.action = "get_sim_servicios";
                             d.nonce = USAALO_Admin.nonce;
+                        },
+                        error: function(xhr, error, thrown) {
+                            console.error("AJAX Error:", error, xhr.responseText);
                         }
                     },
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
-                    processing: false,
-                    serverSide: false,
+                    language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                                emptyTable: "No se encontraron registros en la lista"
+                            },
                     columns: [
                         { data: "country_name" },
                         { data: "brand_name" },
@@ -271,14 +290,14 @@
                         { 
                             data: "esim_supported",
                             render: function(data, type, row) {
-                                return '📱<input type="checkbox" class="toggle-service" data-field="esim_supported" data-model="'+row.model_id+'" data-country="'+row.country_id+'" '+(data == 1 ? "checked" : "")+'>';
+                                return '📶<input type="checkbox" class="toggle-service" data-field="esim_supported" data-model="'+row.model_id+'" data-country="'+row.country_id+'" '+(data == 1 ? "checked" : "")+'>';
                             },
                             orderable: false 
                         },
                         { 
                             data: "data_supported",
                             render: function(data, type, row) {
-                                return '📶<input type="checkbox" class="toggle-service" data-field="data_supported" data-model="'+row.model_id+'" data-country="'+row.country_id+'" '+(data == 1 ? "checked" : "")+'>';
+                                return '📡<input type="checkbox" class="toggle-service" data-field="data_supported" data-model="'+row.model_id+'" data-country="'+row.country_id+'" '+(data == 1 ? "checked" : "")+'>';
                             },
                             orderable: false 
                         },
@@ -301,7 +320,7 @@
                     responsive: true,
                     autoWidth: true,
                     paging: true,
-                    searching: true, // usamos filtros personalizados
+                    searching: true,
                     info: true,
                     // Añadir checkbox en el header
                     initComplete: function () {
@@ -368,7 +387,6 @@
                             nonce: USAALO_Admin.nonce
                         },
                         dataSrc: function(json){
-                            console.log(json)
                             return json.success ? json.data : [];
                         }
                     },
@@ -392,7 +410,7 @@
                         { 
                             data: 'id',
                             render: function(data, type, row) {
-                                return `#${row.id} - ${row.name}`;
+                                return `#${row.id}`;
                             }
                         },
                         { 
@@ -451,7 +469,8 @@
                     serverSide: false,
                     autoWidth: true,
                     language: {
-                        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json"
+                        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json",
+                        emptyTable: "No se encontraron registros en la lista"
                     },
                     initComplete: function () {
                         // Insertar checkbox en cabecera
@@ -497,7 +516,6 @@
                         nonce: USAALO_Admin.nonce,
                         product_id: id
                     }, function(res){
-                        console.log(res)
                         if(!res.success){
                             alert(res.data.message || 'Error al obtener producto');
                             return;
@@ -539,17 +557,38 @@
 
                         // Rangos (si es variable)
                         if (p.type === 'variable' && p.ranges) {
-                            $('#plan-ranges').empty();
-                            p.ranges.forEach((r, i) => {
-                                $('#plan-ranges').append(`
+                            let $container = $('#plan-ranges');
+
+                            // 🔹 Resetear: mantener solo el primer grupo
+                            let $firstGroup = $container.find('.plan-range-group:first');
+                            $container.find('.plan-range-group').not(':first').remove();
+
+                            // 🔹 Si hay al menos un rango, rellenar el primero
+                            if (p.ranges.length > 0) {
+                                let r0 = p.ranges[0];
+                                $firstGroup.find('input[name="ranges[0][min_days]"]').val(r0.min_days);
+                                $firstGroup.find('input[name="ranges[0][max_days]"]').val(r0.max_days);
+                                $firstGroup.find('input[name="ranges[0][price]"]').val(r0.price);
+                            } else {
+                                // Si no hay rangos, limpiar el primero
+                                $firstGroup.find('input').val('');
+                                $firstGroup.find('input[name="ranges[0][min_days]"]').val(1); // mantener el mínimo en 1
+                            }
+
+                            // 🔹 Los demás rangos se agregan
+                            for (let i = 1; i < p.ranges.length; i++) {
+                                let r = p.ranges[i];
+                                $container.append(`
                                     <div class="plan-range-group">
-                                        <input type="number" name="ranges[${i}][min_days]" value="${r.min_days}" readonly>
-                                        <input type="number" name="ranges[${i}][max_days]" value="${r.max_days}">
-                                        <input type="number" name="ranges[${i}][price]" value="${r.price}">
+                                        <input type="number" name="ranges[${i}][min_days]" value="${r.min_days}" placeholder="Desde" min="1" step="1" readonly>
+                                        <input type="number" name="ranges[${i}][max_days]" value="${r.max_days}" placeholder="Hasta" min="1" step="1">
+                                        <input type="number" name="ranges[${i}][price]" value="${r.price}" placeholder="Precio/día" step="0.01" min="0">
+                                        <button type="button" class="remove-range">×</button>
                                     </div>
                                 `);
-                            });
+                            }
                         }
+
 
                         // Abrir modal
                         App.openModal('#usaalo-plan-modal', '#usaalo-plan-form', '#usaalo-plan-overlay');
@@ -584,9 +623,22 @@
             $(document).on('click', '.add-range', function() {
                 let index = $('#plan-ranges .plan-range-group').length;
 
-                // Buscar el valor del max_days del último rango agregado
-                let prevMax = 1;
+                // Buscar el último rango
                 let $lastRange = $('#plan-ranges .plan-range-group').last();
+
+                if ($lastRange.length) {
+                    let lastMax = $lastRange.find('input[name$="[max_days]"]').val();
+                    let lastPrice = $lastRange.find('input[name$="[price]"]').val();
+
+                    // Validar que los dos estén llenos
+                    if (!lastMax || !lastPrice) {
+                        alert("Debes llenar 'Hasta' y 'Precio/día' antes de agregar otro rango.");
+                        return; // 🚫 Detiene la creación del nuevo campo
+                    }
+                }
+
+                // Calcular min_days en base al último max_days
+                let prevMax = 1;
                 if ($lastRange.length) {
                     let lastMax = parseInt($lastRange.find('input[name$="[max_days]"]').val());
                     if (!isNaN(lastMax) && lastMax > 0) {
@@ -594,6 +646,7 @@
                     }
                 }
 
+                // Crear el nuevo rango
                 let rangeHtml = `
                     <div class="plan-range-group">
                         <input type="number" name="ranges[${index}][min_days]" value="${prevMax}" placeholder="Desde" min="1" step="1" readonly>
@@ -604,6 +657,7 @@
                 `;
                 $('#plan-ranges').append(rangeHtml);
             });
+
 
             // Eliminar rango
             $(document).on('click', '.remove-range', function() {
@@ -683,7 +737,6 @@
                     { name: 'nonce', value: USAALO_Admin.nonce }
                 );
 
-                console.log(data)
 
                 $.post(USAALO_Admin.ajaxurl, data, function(res){
                     if(res.success){
@@ -804,7 +857,7 @@
             this.crudEntity({
                 addBtn: '.add-plan',
                 cancelBtn: '.cancel-plan',
-                formSel: 'false',
+                formSel: '#usaalo-plan-form',
                 modalSel: '#usaalo-plan-modal',
                 overlaySel: '#usaalo-plan-overlay',
                 dataTable: 'usaalo-plans-table',
@@ -813,6 +866,7 @@
                 tabla: 'usaalo_product_country',
                 deleteAction: 'delete_products_with_countries',
                 editBtn: 'false',
+                // delete_selected: '.plan.usaalo-delete-selected'
             });
 
 
@@ -847,7 +901,6 @@
                 $.post(USAALO_Admin.ajaxurl, {
                     action: cfg.deleteAction, id:$(this).data('id'), nonce:USAALO_Admin.nonce
                 }, function(res){
-                    console.log(res)
                     if (res.success) { alert(USAALO_Admin.i18n.deleted); location.reload(); }
                     else alert(res.data || 'Error');
                 }, 'json');
@@ -874,11 +927,11 @@
             $(document).on('change', '.usaalo-check', function () {
                 let all = $('.usaalo-check').length;
                 let checked = $('.usaalo-check:checked').length;
-                $(cfg.usaalo-check-all).prop('checked', all === checked);
+                $(cfg.usaalo_check_all).prop('checked', all === checked);
             });
 
             // Eliminar seleccionados
-            $(document).on('click', '.usaalo-delete-selected', function () {
+            $(document).on('click', cfg.delete_selected, function () {
                 let ids = [];
                 $('#'+cfg.dataTable+' .usaalo-check:checked').each(function () {
                     ids.push($(this).val());
@@ -892,47 +945,70 @@
                 if (!confirm("¿Seguro que quieres eliminar los registros seleccionados?")) {
                     return;
                 }
-                console.log(ids)
                 let action = "usaalo_bulk_delete";
                 if(cfg.deleteAction == 'delete_products_with_countries'){
                     action = cfg.deleteAction
                 }
+
                 $.ajax({
                     url: USAALO_Admin.ajaxurl,
                     type: "POST",
+                    dataType: "json", // fuerza JSON para evitar errores raros
                     data: {
                         action: action,
                         nonce: USAALO_Admin.nonce,
                         table: cfg.tabla, 
-                        id: ids
+                        ids: ids
                     },
                     success: function (response) {
-                        console.log(response)
                         if (response.success) {
-                            alert(response.data);
+                            alert(response.data.message);
+                            if(cfg.dataTable === 'usaalo-brands-table'){
+                                $('#usaalo-models-table').DataTable().ajax.reload();
+                            }
                             $('#'+cfg.dataTable).DataTable().ajax.reload();
                             $('#usaalo-check-all').prop('checked', false); // resetear checkbox maestro
                         } else {
-                            alert(response.data);
+                            alert("Error en la respuesta: " + response.data.message);
                         }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("AJAX Error:", status, error);
+                        console.error("Respuesta del servidor:", xhr.responseText);
+                        alert("Error en el servidor: " + error + "\nRevisa la consola para más detalles.");
+                    },
+                    complete: function () {
+                        console.log("AJAX finalizado (éxito o error).");
                     }
                 });
             });
 
         },
-
-        openModal: function(modalSel, formSel, overlaySel) {
+        openModal: function(modalSel, formSel, overlaySel, isEdit = false) {
             if (overlaySel) $(overlaySel).fadeIn(150);
             $(modalSel).fadeIn(200);
+            // 🔹 Focus en el primer input visible
             $(formSel).find('input,select,textarea').filter(':visible:first').focus();
         },
 
         closeModal: function(modalSel, formSel, overlaySel) {
             $(modalSel).fadeOut(150);
             if (overlaySel) $(overlaySel).fadeOut(200);
+
             $(formSel)[0].reset();
+            if(formSel == '#usaalo-plan-form'){
+                // 🔹 Resetear: mantener solo el primer grupo
+                $('#plan-ranges').find('.plan-range-group').not(':first').remove();
+                $('#image_preview img').css('display', 'none');
+                $('#product_image_id').val('false');
+                $('#simple-config').show().find('input').prop('required', true);
+                $('#variable-config').hide().find('input').prop('required', false);
+            }
+            // 🔹 Limpiar inputs hidden manualmente
+            $(formSel).find('input[type="hidden"]').val('');
             $(formSel).find('select').trigger('change');
         }
+
     };
 
     $(function(){ App.init(); });

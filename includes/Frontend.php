@@ -37,7 +37,6 @@ class USAALO_Frontend {
             }
         });
 
-
         add_filter('woocommerce_get_item_data', function($item_data, $cart_item){
             if (!empty($cart_item['usaalo_data'])) {
                 $d = $cart_item['usaalo_data'];
@@ -52,6 +51,49 @@ class USAALO_Frontend {
             }
             return $item_data;
         }, 10, 2);
+        
+        /**
+         * Función para formatear y devolver los datos de usaalo_data
+         */
+        function usaalo_format_item_data($cart_item) {
+            if (empty($cart_item['usaalo_data'])) return '';
+        
+            $d = $cart_item['usaalo_data'];
+        
+            $html = '<ul class="usaalo-item-data" style="margin:5px 0; padding-left:15px; font-size:0.9em;">';
+            $html .= '<li><strong>Países:</strong> '.implode(', ', $d['countries'] ?? []).'</li>';
+            $html .= '<li><strong>Marca:</strong> '.esc_html($d['brand'] ?? '').'</li>';
+            $html .= '<li><strong>Modelo:</strong> '.esc_html($d['model'] ?? '').'</li>';
+            $html .= '<li><strong>Servicios:</strong> '.implode(', ', $d['services'] ?? []).'</li>';
+            $html .= '<li><strong>Días:</strong> '.intval($d['days'] ?? 0).'</li>';
+            $html .= '<li><strong>SIM:</strong> '.esc_html($d['sim'] ?? '').'</li>';
+            $html .= '<li><strong>Inicio:</strong> '.esc_html($d['start_date'] ?? '').'</li>';
+            $html .= '<li><strong>Fin:</strong> '.esc_html($d['end_date'] ?? '').'</li>';
+            $html .= '</ul>';
+        
+            return $html;
+        }
+        
+        if (!is_admin()) {
+        
+            // Carrito
+            add_filter('woocommerce_cart_item_name', function($product_name, $cart_item, $cart_item_key){
+                if (is_cart()) { // solo en página de carrito
+                    return $product_name . usaalo_format_item_data($cart_item);
+                }
+                return $product_name;
+            }, 10, 3);
+        
+            // Checkout
+            add_filter('woocommerce_checkout_cart_item_quantity', function($quantity_html, $cart_item, $cart_item_key){
+                if (is_checkout()) { // solo en checkout
+                    return $quantity_html . usaalo_format_item_data($cart_item);
+                }
+                return $quantity_html;
+            }, 10, 3);
+        }
+
+
 
         add_action('woocommerce_checkout_create_order_line_item', function($item, $cart_item_key, $values, $order){
             if (!empty($values['usaalo_data'])) {
@@ -80,6 +122,7 @@ class USAALO_Frontend {
 
     }
 
+
     /**
      * Encolar scripts y estilos
      */
@@ -94,6 +137,7 @@ class USAALO_Frontend {
         wp_enqueue_script('tippy', 'https://unpkg.com/@popperjs/core@2', [], null, true);
         wp_enqueue_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], null, true);
         wp_enqueue_style('tippycss', 'https://unpkg.com/tippy.js@6/dist/tippy.css', [], null);
+        
 
         // Cargar el caché de productos
         $cache = USAALO_Cache::load_for_frontend();
@@ -101,11 +145,6 @@ class USAALO_Frontend {
         
         $services_data = USAALO_Helpers::servicios_disponibles_todos_modelos();
         
-        // $shipping_costs = [];
-        // foreach ( USAALO_Helpers::get_countries() as $c ) {
-        //     $shipping_costs[$c['code']] = USAALO_Helpers::get_shipping_cost($c['code']);
-        // }
-
         wp_localize_script('usaalo-frontend', 'USAALO_Frontend', [
             'ajaxurl'          => admin_url('admin-ajax.php'),
             'nonce'            => wp_create_nonce('usaalo_frontend_nonce'),
@@ -124,20 +163,6 @@ class USAALO_Frontend {
         ]);
 
     }
-
-    // public function ajax_get_country_prices() {
-    //     check_ajax_referer('usaalo_frontend_nonce', 'nonce');
-
-    //     $country_code = isset($_POST['countries']) ? (array) $_POST['countries'] : [];
-    //     $dias = isset($_POST['dias']) ? $_POST['dias'] : 1;
-    //     $sim_fisica = isset($_POST['sim_fisica']) ? $_POST['sim_fisica'] : false;
-
-    //     if(empty($country_code)) return wp_send_json_error();
-
-    //     $price = USAALO_Helpers::get_country_prices($country_code, $dias, $sim_fisica);
-    //     return wp_send_json_success($price);
-    // }
-
         
     public function ajax_usaalo_add_multiple_to_cart() {
         check_ajax_referer('usaalo_frontend_nonce','nonce');
@@ -254,32 +279,24 @@ class USAALO_Frontend {
         ]);
     }
 
+    public function ajax_get_country_prices() {
+        // Validar nonce
+        check_ajax_referer('usaalo_frontend_nonce', 'nonce');
+        
+        // Obtener datos
+        $country_codes = isset($_POST['countries']) ? array_map('sanitize_text_field', $_POST['countries']) : [];
+        $dias          = isset($_POST['dias']) ? intval($_POST['dias']) : 1;
+        $sim_fisica    = !empty($_POST['sim_fisica']);
 
-
-
-
-
-
-
-
-        public function ajax_get_country_prices() {
-            // Validar nonce
-            check_ajax_referer('usaalo_frontend_nonce', 'nonce');
-            
-            // Obtener datos
-            $country_codes = isset($_POST['countries']) ? array_map('sanitize_text_field', $_POST['countries']) : [];
-            $dias          = isset($_POST['dias']) ? intval($_POST['dias']) : 1;
-            $sim_fisica    = !empty($_POST['sim_fisica']);
-
-            if (empty($country_codes)) {
-                wp_send_json_error(['message' => 'No se han seleccionado países']);
-            }
-
-            // Obtener precios usando caché optimizada
-            $result = USAALO_Cache::get_country_prices($country_codes, $dias, $sim_fisica);
-
-            wp_send_json_success($result);
+        if (empty($country_codes)) {
+            wp_send_json_error(['message' => 'No se han seleccionado países']);
         }
+
+        // Obtener precios usando caché optimizada
+        $result = USAALO_Cache::get_country_prices($country_codes, $dias, $sim_fisica);
+
+        wp_send_json_success($result);
+    }
 
     
 

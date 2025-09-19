@@ -31,7 +31,7 @@ class USAALO_Admin {
             __('Usaalo Cotizador', 'usaalo-cotizador'),
             'manage_options',
             'usaalo-cotizador',          // slug
-            [$this, 'render_countries_page'],
+            [$this, 'render_manual_page'],
             'dashicons-cart',
             56
         );
@@ -215,6 +215,11 @@ class USAALO_Admin {
     }
 
     /* ---------- Renderers de página ---------- */
+
+    public function render_manual_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        include USAALO_PATH . 'includes/templates/admin-manual-template.php';
+    }
 
     public function render_countries_page() {
         if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
