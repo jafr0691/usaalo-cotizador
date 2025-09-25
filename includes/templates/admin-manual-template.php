@@ -8,10 +8,9 @@
     <button class="tab-btn active" data-tab="usuario">👤 Manual de Usuario</button>
     <button class="tab-btn" data-tab="tecnico">⚙️ Manual Técnico</button>
   </div>
-
   <!-- ==========================
-       Manual de Usuario
-       ========================== -->
+  Manual de Usuario
+  ========================== -->
   <section id="usuario" class="usaalo-tab active">
     <h2>Resumen general</h2>
     <p>
@@ -23,10 +22,24 @@
     <div class="usaalo-card">
       <h3>Información clave para usuario</h3>
       <ul>
+        <li><strong>Marca y Modelo:</strong> Esta sección permite filtrar la compatibilidad de servicios por marca y modelo de dispositivo. <em>No afecta el precio final</em>, solo ayuda a identificar rápidamente qué servicios están disponibles para cada combinación de marca y modelo.</li>
         <li><strong>SIM física:</strong> tiene costo y envío (configurado en WooCommerce, nombre <strong>SIM</strong>).</li>
         <li><strong>eSIM:</strong> virtual, no tiene costo ni envío.</li>
-        <li><strong>Servicios:</strong> habilitados solo para mostrar compatibilidad por país y modelo, <em>no afectan el precio final</em>.</li>
-        <li>Marca y Modelo filtran compatibilidad, no el precio.</li>
+        <li><strong>Servicios:</strong> Esta pestaña permite configurar la <em>compatibilidad de servicios por país y modelo</em>. <strong>Nota:</strong> Solo la SIM física (💳) afecta el precio; los demás servicios <em>no modifican el precio final</em>.</li>
+        <ul>
+            <li><strong>SIM (💳):</strong> Soporte de SIM física. <strong>Impacta en el precio</strong>.</li>
+            <li><strong>eSIM (📶):</strong> Soporte de eSIM. Solo informativo.</li>
+            <li><strong>Datos (📡):</strong> Compatibilidad con datos móviles. Solo informativo.</li>
+            <li><strong>Voz (📞):</strong> Permite llamadas de voz. Solo informativo.</li>
+            <li><strong>SMS (✉️):</strong> Permite mensajes de texto. Solo informativo.</li>
+        </ul>
+        <li><strong>Funciones principales:</strong></li>
+        <ul>
+            <li>Checkbox individual: marcar/desmarcar un servicio por modelo y país. Se guarda automáticamente.</li>
+            <li>Checkbox en encabezado de columna: seleccionar/desmarcar <em>todos los visibles</em> de la columna sin recargar la página.</li>
+            <li>Actualización segura: cambios realizados en <strong>transacción</strong> para evitar inconsistencias o registros duplicados.</li>
+            <li>Filtros de búsqueda: filtra por país, marca o modelo para localizar rápidamente registros.</li>
+        </ul>
       </ul>
     </div>
 
@@ -35,8 +48,30 @@
 
     <ul>
         <li><strong>Paises:</strong> solo administra los países almacenados (código ISO 2 letras, nombre, región). Muestra en tabla y permite eliminar o editar cada país.</li>
-        <li><strong>Marcas y Modelos:</strong> administra marcas y modelos guardados. Crear marca, luego modelos. Editar o eliminar cada registro según necesidad.</li>
-        <li><strong>Tipo de SIM y Servicios:</strong> administra configuraciones de compatibilidad por modelo y país. El cotizador mostrará habilitados u opacos según esta configuración.</li>
+        <li>
+          <strong>Marcas y Modelos:</strong> administra las marcas y modelos guardados en el sistema. 
+          Primero debes crear una marca y luego podrás asociarle uno o varios modelos. 
+          Desde aquí también puedes editar o eliminar cada registro según sea necesario.  
+          Además, tienes la posibilidad de <em>activar o desactivar</em> el uso de los campos de marca y modelo en el formulario.  
+          Si desactivas un campo, automáticamente se asignará un valor por defecto 
+          (<code>marca_default</code> o <code>modelo_default</code>) para que la cotización siga funcionando sin necesidad de selección manual.
+        </li>
+
+        <li>
+          <strong>Tipo de SIM y Servicios:</strong> gestiona qué servicios estarán disponibles para cada combinación de país, marca y modelo.  
+          En la parte superior ahora se incluyen <em>checkboxes globales</em> para activar o desactivar por completo las opciones de:
+          <code>SIM</code>, <code>eSIM</code>, <code>Datos</code>, <code>Voz</code> y <code>SMS</code>.  
+          Si un servicio es desactivado globalmente, no aparecerá en el formulario de cotización, 
+          incluso si el modelo tiene ese servicio disponible en su configuración.
+          <br><br>
+          Funciones principales:
+          <ul>
+            <li><strong>Checkbox individual:</strong> marcar o desmarcar un servicio por modelo y país. Se guarda automáticamente.</li>
+            <li><strong>Checkbox en encabezado de columna:</strong> seleccionar o desmarcar todos los visibles de la columna sin necesidad de recargar la página.</li>
+            <li><strong>Actualización segura:</strong> todos los cambios se aplican mediante transacciones, evitando inconsistencias o duplicados en la base de datos.</li>
+            <li><strong>Filtros de búsqueda:</strong> permite filtrar rápidamente por país, marca o modelo para localizar y administrar registros de forma eficiente.</li>
+          </ul>
+        </li>
         <li><strong>Planes (productos):</strong> 
             Aquí se relacionan los productos con los países, marcas, modelos y tipos de SIM. Es donde se define el precio por día para SIM física (simple o variación). 
             <br><br>
@@ -106,7 +141,7 @@
     <p>
         Cliente selecciona España y México, Marca X, Modelo Y → el sistema habilita SIM física y eSIM según compatibilidad → selecciona servicios disponibles → ingresa fecha inicio y número de días → visualiza resumen y precio total → confirma para ir al checkout de WooCommerce.
     </p>
-    </section>
+  </section>
 
   <!-- ==========================
        Manual Técnico

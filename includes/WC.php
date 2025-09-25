@@ -80,33 +80,44 @@ class USAALO_Checkout_Fields {
             'class' => ['form-row-wide'],
         ], $checkout->get_value('whatsapp'));
 
-        // Motivo de viaje
+        // // Motivo de viaje
+        // woocommerce_form_field('motivo_viaje', [
+        //     'type' => 'select',
+        //     'label' => __('Motivo del viaje'),
+        //     'required' => true,
+        //     'options' => [
+        //         '' => 'Seleccionar...',
+        //         'turismo' => 'Turismo',
+        //         'trabajo' => 'Trabajo',
+        //         'estudio' => 'Estudio',
+        //         'otros'   => 'Otros',
+        //     ]
+        // ], $checkout->get_value('motivo_viaje'));
+        // Motivo de viaje (oculto, valor fijo "otros")
         woocommerce_form_field('motivo_viaje', [
-            'type' => 'select',
-            'label' => __('Motivo del viaje'),
+            'type'  => 'hidden',
+            'label' => false,
             'required' => true,
-            'options' => [
-                '' => 'Seleccionar...',
-                'turismo' => 'Turismo',
-                'trabajo' => 'Trabajo',
-                'estudio' => 'Estudio',
-                'otros'   => 'Otros',
-            ]
-        ], $checkout->get_value('motivo_viaje'));
+            'default' => 'otros',
+        ], $checkout->get_value('motivo_viaje') ?: 'otros');
 
         // IMEI
         woocommerce_form_field('imei', [
-            'type' => 'text',
-            'label' => __('Número IMEI'),
-            'required' => true,
+            'type'        => 'text',
+            'label'       => __('Número IMEI', 'tu-textdomain'),
+            'required'    => true,
+            'description' => __('Marca *#06# en tu celular o revisa en Ajustes > Información del dispositivo.', 'tu-textdomain'),
         ], $checkout->get_value('imei'));
 
-        // EID (solo eSIM, se oculta por JS)
+        // EID
         woocommerce_form_field('eid', [
-            'type' => 'text',
-            'label' => __('Número EID (solo eSIM)'),
-            'required' => false,
+            'type'        => 'text',
+            'label'       => __('Número EID (solo eSIM)', 'tu-textdomain'),
+            'required'    => false,
+            'description' => __('Se encuentra en Ajustes > Información del dispositivo (solo en equipos con eSIM).', 'tu-textdomain'),
         ], $checkout->get_value('eid'));
+
+
 
         // ¿En crucero?
         woocommerce_form_field('en_crucero', [

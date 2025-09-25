@@ -1,9 +1,23 @@
+<?php
+    $config = get_option('usaalo_cotizador_config', []); // Obtiene todo el array
+    $show_brand = isset($config['show_brand']) ? $config['show_brand'] : 1;
+    $show_model = isset($config['show_model']) ? $config['show_model'] : 1;
+?>
 <div class="wrap">
     <h1><?php _e('Configuración de Marcas y Modelos de los dispositivos', 'usaalo-cotizador'); ?></h1>
     <p><?php _e('Gestiona planes, países, marcas y modelos para el cotizador', 'usaalo-cotizador'); ?></p>
-
-    <h2><?php _e('Marcas', 'usaalo-cotizador'); ?></h2>
-    <button class="button add-brand"><?php _e('Agregar Marca','usaalo-cotizador');?></button>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <h2><?php _e('Marcas', 'usaalo-cotizador'); ?></h2>
+        <!-- Toggle Marca -->
+        <label class="switch">
+            <input type="checkbox" class="usaalo-toggle" data-key="show_brand" <?php checked($show_brand, 1); ?>>
+            <span class="slider round"></span>
+        </label>
+        <span id="brand-status" style="font-weight:bold;"></span>
+    </div>
+        <button class="button add-brand"><?php _e('Agregar Marca','usaalo-cotizador');?></button>
+        
+        
     <table id="usaalo-brands-table" class="widefat striped">
         <thead><tr>
             <th></th>
@@ -22,9 +36,18 @@
     <button class="button button-danger usaalo-delete-selected" data-table="usaalo-brands-table">
         Eliminar seleccionados
     </button>
-
-    <h2><?php _e('Modelos', 'usaalo-cotizador'); ?></h2>
-    <button class="button add-model"><?php _e('Agregar Modelo','usaalo-cotizador');?></button>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <h2><?php _e('Modelos', 'usaalo-cotizador'); ?></h2>
+        <!-- Toggle Modelo -->
+        <label class="switch">
+            <input type="checkbox" class="usaalo-toggle" data-key="show_model" <?php checked($show_model, 1); ?>>
+            <span class="slider round"></span>
+        </label>
+        <span id="model-status" style="font-weight:bold;"></span>
+    </div>
+        <button class="button add-model"><?php _e('Agregar Modelo','usaalo-cotizador');?></button>
+        
+        
     <table id="usaalo-models-table" class="widefat striped">
         <thead><tr>
             <th></th>

@@ -37,13 +37,30 @@ class USAALO_Frontend {
             }
         });
 
+        // Mostrar datos en checkout y carrito
         add_filter('woocommerce_get_item_data', function($item_data, $cart_item){
             if (!empty($cart_item['usaalo_data'])) {
+                $config = get_option('usaalo_cotizador_config', []);
+
                 $d = $cart_item['usaalo_data'];
+
+                // Países
                 $item_data[] = ['name'=>'Países','value'=>implode(', ', $d['countries'] ?? [])];
-                $item_data[] = ['name'=>'Marca','value'=>$d['brand'] ?? ''];
-                $item_data[] = ['name'=>'Modelo','value'=>$d['model'] ?? ''];
+
+                // Marca
+                if (!isset($config['show_brand']) || $config['show_brand'] == 1) {
+                    $item_data[] = ['name'=>'Marca','value'=>$d['brand'] ?? ''];
+                }
+
+                // Modelo
+                if (!isset($config['show_model']) || $config['show_model'] == 1) {
+                    $item_data[] = ['name'=>'Modelo','value'=>$d['model'] ?? ''];
+                }
+
+                // Servicios
                 $item_data[] = ['name'=>'Servicios','value'=>implode(', ', $d['services'] ?? [])];
+
+                // Otros campos
                 $item_data[] = ['name'=>'Días','value'=>$d['days'] ?? ''];
                 $item_data[] = ['name'=>'SIM','value'=>$d['sim'] ?? ''];
                 $item_data[] = ['name'=>'Inicio','value'=>$d['start_date'] ?? ''];
@@ -51,58 +68,72 @@ class USAALO_Frontend {
             }
             return $item_data;
         }, 10, 2);
-        
+
+
         /**
          * Función para formatear y devolver los datos de usaalo_data
          */
         function usaalo_format_item_data($cart_item) {
             if (empty($cart_item['usaalo_data'])) return '';
-        
+
+            $config = get_option('usaalo_cotizador_config', []);
             $d = $cart_item['usaalo_data'];
-        
+
             $html = '<ul class="usaalo-item-data" style="margin:5px 0; padding-left:15px; font-size:0.9em;">';
             $html .= '<li><strong>Países:</strong> '.implode(', ', $d['countries'] ?? []).'</li>';
-            $html .= '<li><strong>Marca:</strong> '.esc_html($d['brand'] ?? '').'</li>';
-            $html .= '<li><strong>Modelo:</strong> '.esc_html($d['model'] ?? '').'</li>';
+
+            if (!isset($config['show_brand']) || $config['show_brand'] == 1) {
+                $html .= '<li><strong>Marca:</strong> '.esc_html($d['brand'] ?? '').'</li>';
+            }
+
+            if (!isset($config['show_model']) || $config['show_model'] == 1) {
+                $html .= '<li><strong>Modelo:</strong> '.esc_html($d['model'] ?? '').'</li>';
+            }
+
             $html .= '<li><strong>Servicios:</strong> '.implode(', ', $d['services'] ?? []).'</li>';
             $html .= '<li><strong>Días:</strong> '.intval($d['days'] ?? 0).'</li>';
             $html .= '<li><strong>SIM:</strong> '.esc_html($d['sim'] ?? '').'</li>';
             $html .= '<li><strong>Inicio:</strong> '.esc_html($d['start_date'] ?? '').'</li>';
             $html .= '<li><strong>Fin:</strong> '.esc_html($d['end_date'] ?? '').'</li>';
             $html .= '</ul>';
-        
+
             return $html;
         }
-        
+
         if (!is_admin()) {
-        
             // Carrito
             add_filter('woocommerce_cart_item_name', function($product_name, $cart_item, $cart_item_key){
-                if (is_cart()) { // solo en página de carrito
+                if (is_cart()) {
                     return $product_name . usaalo_format_item_data($cart_item);
                 }
                 return $product_name;
             }, 10, 3);
-        
+
             // Checkout
             add_filter('woocommerce_checkout_cart_item_quantity', function($quantity_html, $cart_item, $cart_item_key){
-                if (is_checkout()) { // solo en checkout
+                if (is_checkout()) {
                     return $quantity_html . usaalo_format_item_data($cart_item);
                 }
                 return $quantity_html;
             }, 10, 3);
         }
 
-
-
+        // Guardar en el pedido
         add_action('woocommerce_checkout_create_order_line_item', function($item, $cart_item_key, $values, $order){
             if (!empty($values['usaalo_data'])) {
+                $config = get_option('usaalo_cotizador_config', []);
                 foreach ($values['usaalo_data'] as $key=>$val) {
                     if (is_array($val)) $val = implode(', ', $val);
+
+                    // No guardar marca/modelo si están ocultos
+                    if ($key === 'brand' && isset($config['show_brand']) && $config['show_brand'] == 0) continue;
+                    if ($key === 'model' && isset($config['show_model']) && $config['show_model'] == 0) continue;
+
                     $item->add_meta_data('usaalo_'.$key, $val);
                 }
             }
         }, 10, 4);
+
 
         // ----------------------
         // Quitar envío si todos los productos son eSIM
@@ -128,23 +159,26 @@ class USAALO_Frontend {
      */
     public function enqueue_assets() {
         $base = plugin_dir_url(dirname(__FILE__)) . 'assets/';
+        
+        // CSS
         wp_enqueue_style('usaalo-select2', $base . 'lib/select2.min.css', [], '4.1.0');
         wp_enqueue_style('usaalo-frontend', $base . 'css/frontend.css', [], time());
+        wp_enqueue_style('flatpickrcss', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.13');
+        wp_enqueue_style('tippycss', 'https://unpkg.com/tippy.js@6/dist/tippy.css', [], '6.3.7');
 
+        // JS
         wp_enqueue_script('usaalo-select2', $base . 'lib/select2.min.js', ['jquery'], '4.1.0', true);
-        wp_enqueue_script('usaalo-frontend', $base . 'js/frontend.js', ['jquery','usaalo-select2'], time(), true);
+        wp_enqueue_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.13', true);
+        wp_enqueue_script('tippy', 'https://unpkg.com/@popperjs/core@2', [], '2.11.8', true);
+        wp_enqueue_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], '6.3.7', true);
+        // USAALO_VERSION
+        wp_enqueue_script('usaalo-frontend', $base . 'js/frontend.js', ['jquery', 'usaalo-select2', 'flatpickr'], time(), true);
 
-        wp_enqueue_script('tippy', 'https://unpkg.com/@popperjs/core@2', [], null, true);
-        wp_enqueue_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], null, true);
-        wp_enqueue_style('tippycss', 'https://unpkg.com/tippy.js@6/dist/tippy.css', [], null);
-        
-
-        // Cargar el caché de productos
+        // Datos para JS
         $cache = USAALO_Cache::load_for_frontend();
-
-        
         $services_data = USAALO_Helpers::servicios_disponibles_todos_modelos();
-        
+        $config = get_option('usaalo_cotizador_config', []);
+
         wp_localize_script('usaalo-frontend', 'USAALO_Frontend', [
             'ajaxurl'          => admin_url('admin-ajax.php'),
             'nonce'            => wp_create_nonce('usaalo_frontend_nonce'),
@@ -157,12 +191,16 @@ class USAALO_Frontend {
             'i18n'             => [
                 'select_country' => __('Selecciona un país', 'usaalo-cotizador'),
                 'error'          => __('Ocurrió un error', 'usaalo-cotizador'),
+                'sim'          => __('Tu SIM para tu viaje 🌍', 'usaalo-cotizador'),
+                'servicio'          => __('Opciones disponibles para ti 🌟', 'usaalo-cotizador'),
             ],
             'products'         => $cache,
             'TypeServices'     => $services_data,
+            'Config'           => $config,
+            'img_chip'         => $simIcon = '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim.png" width="18" height="18" style="vertical-align:middle;">'
         ]);
-
     }
+
         
     public function ajax_usaalo_add_multiple_to_cart() {
         check_ajax_referer('usaalo_frontend_nonce','nonce');

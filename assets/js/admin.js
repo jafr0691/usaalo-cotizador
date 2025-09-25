@@ -11,12 +11,15 @@
                 case 'toplevel_page_usaalo-cotizador':
                 case 'usaalo-cotizador_page_usaalo-cotizador-countries':
                     this.initCountries();
+                    this.active();
                     break;
                 case 'usaalo-cotizador_page_usaalo-cotizador-brands-models':
                     this.initBrandsModels();
+                    this.active();
                     break;
                 case 'usaalo-cotizador_page_usaalo-cotizador-sim-servicio':
                     this.initSimServicio();
+                    this.active();
                     break;
                 case 'usaalo-cotizador_page_usaalo-cotizador-plans':
                     this.initPlans();
@@ -265,9 +268,11 @@
                         url: USAALO_Admin.ajaxurl,
                         type: "POST",
                         data: function(d) {
-                            // Añadimos filtros personalizados
                             d.action = "get_sim_servicios";
                             d.nonce = USAALO_Admin.nonce;
+                            d.filter_country = $('#filter-country').val();
+                            d.filter_brand   = $('#filter-brand').val();
+                            d.filter_model   = $('#filter-model').val();
                         },
                         error: function(xhr, error, thrown) {
                             console.error("AJAX Error:", error, xhr.responseText);
@@ -324,24 +329,32 @@
                     info: true,
                     // Añadir checkbox en el header
                     initComplete: function () {
+                        let api = this.api();
+
+                        // Lista de campos que tienen checkboxes
+                        let toggleFields = [
+                            {colIndex: 3, field: "sim_supported", label: "SIM"},
+                            {colIndex: 4, field: "esim_supported", label: "eSIM"},
+                            {colIndex: 5, field: "data_supported", label: "DATOS"},
+                            {colIndex: 6, field: "voice_supported", label: "VOZ"},
+                            {colIndex: 7, field: "sms_supported", label: "SMS"}
+                        ];
+
+                        toggleFields.forEach(cfg => {
+                            $(api.column(cfg.colIndex).header()).html(
+                                '<input type="checkbox" class="toggle-all-col" data-field="'+cfg.field+'">'+cfg.label
+                            );
+                        });
                         // Agregar el checkbox de seleccionar todos en el header
                         $('#usaalo-countries-table thead th').eq(0).html(
                             '<input type="checkbox" id="country-usaalo-check-all">'
                         );
+
                     }
                 });
 
-                // 🔎 Filtro por columnas personalizadas
-                $('#filter-country').on('keyup change', function() {
-                    table.column(0).search(this.value).draw();
-                });
-
-                $('#filter-brand').on('keyup change', function() {
-                    table.column(1).search(this.value).draw();
-                });
-
-                $('#filter-model').on('keyup change', function() {
-                    table.column(2).search(this.value).draw();
+                $('#filter-country, #filter-brand, #filter-model').on('keyup change', function() {
+                    table.draw();
                 });
 
                 // Evento para guardar cambios
@@ -350,7 +363,7 @@
                     let country_id = $(this).data("country");
                     let field = $(this).data("field");
                     let value = $(this).is(":checked") ? 1 : 0;
-
+                    
                     $.post(USAALO_Admin.ajaxurl, {
                         action: "usaalo_update_service",
                         nonce: USAALO_Admin.nonce,
@@ -358,12 +371,50 @@
                         country_id: country_id,
                         field: field,
                         value: value
-                    }, function(response) {
-                        if (!response.success) {
-                            alert("Error al guardar cambios");
-                        }
+                        }, function(response) {
+                            if (!response.success) {
+                                alert("Error al guardar cambios");
+                            }
                     });
                 });
+
+                // Evento para seleccionar/deseleccionar toda la columna visible
+                $(document).on("change", ".toggle-all-col", function() {
+                    let field = $(this).data("field");
+                    let checked = $(this).is(":checked");
+
+                    let updates = [];
+
+                    // Solo afecta a los checkboxes visibles en la tabla actual
+                    $('#sim_servicio_table')
+                        .find('input.toggle-service[data-field="'+field+'"]')
+                        .each(function() {
+                            if ($(this).is(":checked") !== checked) {
+                                $(this).prop("checked", checked);
+                                updates.push({
+                                    model_id: $(this).data("model"),
+                                    country_id: $(this).data("country"),
+                                    field: field,
+                                    value: checked ? 1 : 0
+                                });
+                            }
+                        });
+
+                    if (updates.length > 0) {
+                        $.post(USAALO_Admin.ajaxurl, {
+                            action: "usaalo_bulk_update_service",
+                            nonce: USAALO_Admin.nonce,
+                            updates: updates
+                        }, function(response) {
+                            if (response.success) {
+                                console.log("✅ Cambios guardados correctamente");
+                            } else {
+                                alert("❌ Error: " + (response.data?.msg || "Error desconocido"));
+                            }
+                        });
+                    }
+                });
+
             }
 
         },
@@ -853,7 +904,7 @@
             mediaUploader.open();
         });
 
-        // Model
+        // Plan
             this.crudEntity({
                 addBtn: '.add-plan',
                 cancelBtn: '.cancel-plan',
@@ -866,7 +917,7 @@
                 tabla: 'usaalo_product_country',
                 deleteAction: 'delete_products_with_countries',
                 editBtn: 'false',
-                // delete_selected: '.plan.usaalo-delete-selected'
+                delete_selected: 'false'
             });
 
 
@@ -1007,7 +1058,66 @@
             // 🔹 Limpiar inputs hidden manualmente
             $(formSel).find('input[type="hidden"]').val('');
             $(formSel).find('select').trigger('change');
+        },
+        updateStatus: function(element, standar = USAALO_Admin.i18n.mostrar, cambio = USAALO_Admin.i18n.ocultar) {
+            const shortName = element.data("key").split('_')[1];
+            const status = document.getElementById(shortName + "-status");
+            status.textContent = element.is(":checked") ? standar : cambio;
+        },
+
+        active: function() {
+            const self = this; 
+
+            // Mostrar estado al cargar
+            jQuery(".usaalo-toggle").each(function(){
+                const key = $(this).data("key");
+                if(key === "select_pais"){
+                    self.updateStatus($(this), USAALO_Admin.i18n.multiple, USAALO_Admin.i18n.simple);
+                } else {
+                    self.updateStatus($(this));
+                }
+            });
+
+            // Actualizar estado al cambiar
+            jQuery(document).on("change", ".usaalo-toggle", function(){
+                let key   = $(this).data("key");
+                let value = $(this).is(":checked") ? 1 : 0;
+
+                if(key === "select_pais"){
+                    self.updateStatus($(this), USAALO_Admin.i18n.multiple, USAALO_Admin.i18n.simple);
+                } else {
+                    self.updateStatus($(this));
+                }
+
+                // Si desactivo marca → modelo también se desactiva automáticamente
+                if(key === "show_brand" && value === 0){
+                    let $modelo = $('.usaalo-toggle[data-key="show_model"]');
+                    $modelo.prop("checked", false).trigger("change");
+                }
+
+                $.ajax({
+                    url: USAALO_Admin.ajaxurl,
+                    method: "POST",
+                    data: {
+                        action: "usaalo_update_config_toggle",
+                        nonce: USAALO_Admin.nonce,
+                        key: key,
+                        value: value
+                    },
+                    success: function(res){
+                        if(res.success){
+                            console.log("✅ Configuración actualizada:", key, value);
+                        } else {
+                            console.error("❌ Error al actualizar:", res.data);
+                        }
+                    },
+                    error: function(xhr){
+                        console.error("⚠️ Error AJAX:", xhr.responseText);
+                    }
+                });
+            });
         }
+
 
     };
 

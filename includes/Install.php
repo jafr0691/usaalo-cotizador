@@ -82,12 +82,50 @@ class USAALO_Installer {
             KEY idx_country (country_id)
         ) $charset");
 
+        $default_config = [
+            'show_brand' => 1,
+            'show_model' => 1,
+            'show_sim'   => 1,
+            'show_esim'  => 1,
+            'show_data'  => 1,
+            'show_voice' => 1,
+            'show_sms'   => 1,
+            'select_pais'   => 1
+        ];
+
+        if (false === get_option('usaalo_cotizador_config')) {
+            update_option('usaalo_cotizador_config', $default_config);
+        }
+
         self::seed_initial();
     }
 
     public static function deactivate() {
+        delete_option('usaalo_cotizador_config');
         // noop
     }
+    public static function uninstall() {
+        global $wpdb;
+
+        // 1️⃣ Eliminar opción de configuración
+        delete_option('usaalo_cotizador_config');
+
+        // 2️⃣ Listado de tablas a eliminar
+        $tables = [
+            $wpdb->prefix . 'usaalo_product_country',
+            $wpdb->prefix . 'usaalo_device_country',
+            $wpdb->prefix . 'usaalo_device_config',
+            $wpdb->prefix . 'usaalo_models',
+            $wpdb->prefix . 'usaalo_brands',
+            $wpdb->prefix . 'usaalo_countries'
+        ];
+
+        // 3️⃣ Ejecutar DROP TABLE para cada tabla
+        foreach ($tables as $table) {
+            $wpdb->query("DROP TABLE IF EXISTS $table");
+        }
+    }
+
 
     public static function seed_initial() {
         global $wpdb;
@@ -337,7 +375,7 @@ class USAALO_Installer {
             'Coosea' => ['Pronger (SL104D)','Elbert/Celero 5G SC (SN339D)'],
             'Dialn' => ['BlackviewA55','X65','X62','Nova','Neo'],
             'HMD' => ['Fusion (TA-165)','XR21 (TA-1592)','Vibe (TA-1590)'],
-            'Essential' => ['modelo: PH 1*'],
+            'Essential' => ['PH 1*'],
             'Hot Pepper' => ['Chilaca Plus (HPPL60A)','Cascabel (HPPH88C)','Tepin (HPPL63A)'],	
             'Foxx' => ['A65L','A67'],
             'HTC' => ['Desire 626 (0PM9120)','Desire EYE (0PFH100)','One A9 (2PQ9120)','One M8* (0P6B120)','One M9 (0PJA110)'],

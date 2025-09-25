@@ -467,3 +467,37 @@ table.widefat tr:hover {
     height: auto;
     margin-right: 0.5rem;
 }
+
+
+/* Switch moderno */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 15px;
+}
+.switch input {display:none;}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 10px; width: 10px;
+  left: 3px; bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #2271b1; /* color WP admin */
+}
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
