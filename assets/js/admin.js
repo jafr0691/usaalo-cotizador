@@ -11,7 +11,7 @@
                 case 'toplevel_page_usaalo-cotizador':
                 case 'usaalo-cotizador_page_usaalo-cotizador-countries':
                     this.initCountries();
-                    this.active();
+                    this.active(USAALO_Admin.i18n.multiple, USAALO_Admin.i18n.simple);
                     break;
                 case 'usaalo-cotizador_page_usaalo-cotizador-brands-models':
                     this.initBrandsModels();
@@ -23,6 +23,7 @@
                     break;
                 case 'usaalo-cotizador_page_usaalo-cotizador-plans':
                     this.initPlans();
+                    this.active(USAALO_Admin.i18n.horizontal, USAALO_Admin.i18n.vertical);
                     break;
             }
         },
@@ -1065,17 +1066,13 @@
             status.textContent = element.is(":checked") ? standar : cambio;
         },
 
-        active: function() {
+        active: function(standar = USAALO_Admin.i18n.mostrar, cambio = USAALO_Admin.i18n.ocultar) {
             const self = this; 
 
             // Mostrar estado al cargar
             jQuery(".usaalo-toggle").each(function(){
                 const key = $(this).data("key");
-                if(key === "select_pais"){
-                    self.updateStatus($(this), USAALO_Admin.i18n.multiple, USAALO_Admin.i18n.simple);
-                } else {
-                    self.updateStatus($(this));
-                }
+                self.updateStatus($(this), standar, cambio);
             });
 
             // Actualizar estado al cambiar
@@ -1083,11 +1080,7 @@
                 let key   = $(this).data("key");
                 let value = $(this).is(":checked") ? 1 : 0;
 
-                if(key === "select_pais"){
-                    self.updateStatus($(this), USAALO_Admin.i18n.multiple, USAALO_Admin.i18n.simple);
-                } else {
-                    self.updateStatus($(this));
-                }
+                self.updateStatus($(this), standar, cambio);
 
                 // Si desactivo marca → modelo también se desactiva automáticamente
                 if(key === "show_brand" && value === 0){

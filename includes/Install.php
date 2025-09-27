@@ -90,7 +90,8 @@ class USAALO_Installer {
             'show_data'  => 1,
             'show_voice' => 1,
             'show_sms'   => 1,
-            'select_pais'   => 1
+            'select_pais'   => 1,
+            'form_horizont'   => 1
         ];
 
         if (false === get_option('usaalo_cotizador_config')) {

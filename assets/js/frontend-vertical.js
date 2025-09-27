@@ -74,19 +74,13 @@ jQuery(document).ready(function($){
             </span>`
         );
     }
-
     function loadCountries() {
         const $country = $('#country').empty();
         const raw = window.USAALO_Frontend && USAALO_Frontend.allCountries ? USAALO_Frontend.allCountries : [];
         const list = toArray(raw);
 
-        // Opción inicial amigable y comercial
-        $country.append($('<option/>')
-            .val('')
-            .text('🌎 Elige tu país para empezar')
-            .prop('disabled', true)
-            .prop('selected', true)
-        );
+        // Agregamos un <option> vacío solo para permitir el placeholder (no es seleccionable)
+        $country.append($('<option/>').val(''));
 
         // Resto de países
         list.forEach(c => {
@@ -112,18 +106,21 @@ jQuery(document).ready(function($){
             $country.attr('multiple', 'multiple');
         }
 
-        // initialize select2
+        // initialize select2 con placeholder
         if ($country.hasClass('select2-hidden-accessible')) $country.select2('destroy');
         $country.select2({
             width: '100%',
+            placeholder: '🌎 Elige tu país para empezar', // <<--- AQUÍ
             templateResult: formatCountry,
             templateSelection: formatCountry,
             escapeMarkup: m => m,
-            language: 'es'
+            language: 'es',
+            allowClear: true // permite limpiar si es necesario
         });
     }
 
     loadCountries();
+
 
 
     /* =========================
@@ -547,7 +544,7 @@ jQuery(document).ready(function($){
         }
 
         // Mostrar loader visual ligero
-        $price.stop(true).fadeOut(100, function(){ $(this).text(`0,00 ${CURRENCY}`).fadeIn(150); });
+        // $price.stop(true).fadeOut(100, function(){ $(this).text(`0,00 ${CURRENCY}`).fadeIn(150); });
 
         const brandVal = $('#brand').val();
         const modelVal = $('#model').val();
@@ -608,8 +605,7 @@ jQuery(document).ready(function($){
         const $back = $('.usaalo-back');
         const $next = $('.usaalo-next');
         const $confirm = $('.usaalo-confirm');
-        console.log(TOTAL_STEPS)
-        console.log(currentStep)
+
         // Reset
         $back.addClass('hidden');
         $next.addClass('hidden');
@@ -617,7 +613,7 @@ jQuery(document).ready(function($){
 
         if (currentStep > 1) $back.removeClass('hidden');
         if (currentStep < TOTAL_STEPS) $next.removeClass('hidden');
-        if (currentStep === TOTAL_STEPS) $confirm.removeClass('hidden'); console.log('confirme hidden')
+        if (currentStep === TOTAL_STEPS) $confirm.removeClass('hidden');
     }
 
     function showStep(step) {

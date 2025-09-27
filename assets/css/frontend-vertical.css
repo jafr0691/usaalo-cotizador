@@ -14,9 +14,7 @@
 }
 
 #usaalo-price {
-    position: absolute;
-    right: 50px;
-    bottom: 30px;
+    max-width: 120px;
 }
 
 /* ========================
@@ -75,16 +73,16 @@
 /* ========================
    Botones
 ======================== */
-#usaalo-quote button {
+.usaalo-controls button {
     background-color: #0073aa;
     color: #fff;
-    padding: 10px 16px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     font-size: 14px;
     transition: background 0.2s;
+    padding: 10px;
 }
 #usaalo-quote button:hover { background-color: #005177; }
 
@@ -115,7 +113,7 @@
 #usaalo-cotizador-wizard .select2-container--default .select2-selection__choice__remove {
     background: transparent;
     border: none;
-    color: #555;
+    color: #121359;
     font-size: 14px;
     margin-right: 2px;
     cursor: pointer;
@@ -128,6 +126,108 @@
     font-size: 14px;
     line-height: 1.6;
 }
+
+/* ========================
+   Select2 Personalizado País
+======================== */
+
+/* Altura uniforme */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    min-height: 38px;
+    height: 28px;
+    border: 1px solid #d1d5db; /* gris elegante */
+    border-radius: 8px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    background-color: #fff;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__display{
+  margin-left: 30px !important;
+  color: #121359 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__clear{
+  width: 20px !important;
+}
+/* Texto dentro */
+.select2-container--default .select2-selection__rendered {
+    line-height: normal !important;
+    padding-left: 28px !important; /* espacio para la bandera */
+    font-size: 14px;
+    color: #374151;
+    margin: 0 !important;
+}
+
+/* Icono de dropdown */
+.select2-container--default .select2-selection__arrow {
+    top: 50% !important;
+    transform: translateY(-50%);
+    right: 8px;
+}
+
+/* Bandera en lista */
+.select2-results__option img {
+    width: 18px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+/* Bandera en selección */
+.select2-container--default .select2-selection__rendered img {
+    position: absolute;
+    left: 8px;
+    width: 18px;
+    height: 14px;
+    border-radius: 2px;
+}
+
+/* MULTIPLE: Píldoras de selección */
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #f19200; /* gris claro */
+    border: 1px solid #121359;
+    border-radius: 6px;
+    padding: 2px 6px 2px 24px;
+    font-size: 13px;
+    position: relative;
+    margin: 3px;
+    color: #121359;
+}
+.select2-container--open .select2-dropdown--below{
+  top: 32px;
+}
+.select2-container .select2-search--inline .select2-search__field{
+  min-height: 28px !important;
+  overflow: auto !important;
+}
+
+/* Bandera dentro de la píldora */
+.select2-container--default .select2-selection--multiple .select2-selection__choice img {
+    position: absolute;
+    left: 20px;
+    top: 5px;
+    width: 14px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* Botón de eliminar (X) */
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    margin-left: auto;
+    margin-right: 4px;
+    color: #6b7280;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #ef4444; /* rojo al pasar el mouse */
+}
+
 
 /* ========================
    Opciones SIM y Servicios
@@ -234,6 +334,7 @@ p.btn-prev-next>button { margin-top: 15px !important; }
     vertical-align: middle;
     border-radius: 2px;
 }
+
 .country-disabled { cursor: not-allowed; }
 
 .select2-results__option:has(.country-disabled) {
@@ -246,6 +347,11 @@ p.btn-prev-next>button { margin-top: 15px !important; }
     width: 24px;
     height: 18px;
     margin-right: 6px;
+}
+#country {
+    height: 28px !important;
+    min-height: 28px;
+    line-height: 28px;
 }
 
 /* ========================
@@ -377,10 +483,6 @@ p.btn-prev-next>button { margin-top: 15px !important; }
 /* ========================
    Precios
 ======================== */
-.price-container {
-  text-align: center;
-  margin: 20px 0;
-}
 
 .price-label {
   display: block;
@@ -431,14 +533,6 @@ p.btn-prev-next>button { margin-top: 15px !important; }
     margin-left: 5px;
 }
 
-.country-flag {
-    width: 20px;
-    height: 14px;
-    vertical-align: middle;
-    margin-right: 5px;
-    border-radius: 2px;
-}
-
 .price-summary {
     font-size: 1.3rem;
     text-align: center;
@@ -459,3 +553,126 @@ p.btn-prev-next>button { margin-top: 15px !important; }
 .usaalo-confirm{
   height: 4.5rem !important;
 }
+
+/* Estilo para escritorio */
+.usaalo-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* Botones alineados a la izquierda */
+.usaalo-controls .buttons {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* Label centrado */
+.usaalo-controls .price-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Precio alineado a la derecha */
+.usaalo-controls .price-total {
+  flex: 1;
+  text-align: right;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* ========================
+   Responsive
+======================== */
+
+/* Tablets y pantallas medianas */
+@media (max-width: 1024px) {
+    .select2-container--open .select2-dropdown{
+      top: 46px;
+    }
+    .usaalo-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+    }
+
+    .usaalo-controls .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .usaalo-controls button {
+        width: 100%;
+    }
+
+    .price-label {
+        margin-bottom: 4px;
+    }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+  .select2-container--open .select2-dropdown{
+      top: 46px;
+    }
+    .usaalo-controls {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .price-label {
+        display: block;
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    #usaalo-price {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        margin: 0 auto;
+    }
+
+    .usaalo-controls .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .usaalo-controls button {
+        width: 100%;
+        font-size: 14px;
+        padding: 12px;
+    }
+}
+
+/* Extra pequeños (teléfonos <480px) */
+@media (max-width: 480px) {
+    .usaalo-controls {
+        gap: 12px;
+    }
+
+    .price-total {
+        font-size: 1.5rem;
+        padding: 10px 16px;
+    }
+
+    .usaalo-controls button {
+        font-size: 13px;
+        padding: 10px;
+    }
+}
+

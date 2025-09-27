@@ -58,8 +58,8 @@
             <input type="number" id="num_days" name="num_days" min="1" value="1" required>
 
             <!-- Fecha fin -->
-            <label><?php _e('¿Hasta cuándo quieres tu plan? 📆', 'usaalo-cotizador'); ?></label>
-            <input class="country-disabled" type="date" id="end_date" name="end_date" readonly required>
+            <label style="display:none;"><?php _e('¿Hasta cuándo quieres tu plan? 📆', 'usaalo-cotizador'); ?></label>
+            <input style="display:none;" class="country-disabled" type="date" id="end_date" name="end_date" readonly required>
         </div>
 
 
@@ -71,7 +71,7 @@
         </div>
 
         <!-- Step 3: Resumen -->
-        <div class="step" id="step-3">
+        <div class="step" id="step-3" style="margin-left: 50px;">
             <h3><?php _e('Resumen', 'usaalo-cotizador'); ?></h3>
             <div id="usaalo-summary"></div>
             <div id="usaalo-loader" class="usaalo-loader hidden">
@@ -85,16 +85,14 @@
         <!-- Controles y precio -->
         <div class="usaalo-controls">
             <div class="buttons">
-                <button type="button" class="usaalo-back hidden"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
-                <button type="button" class="usaalo-next"><?php _e('Siguiente', 'usaalo-cotizador'); ?></button>
-                <button type="submit" class="usaalo-confirm hidden">
+                <button type="button" class="usaalo-back btn hidden"><?php _e('Atrás', 'usaalo-cotizador'); ?></button>
+                <button type="button" class="usaalo-next btn"><?php _e('Siguiente', 'usaalo-cotizador'); ?></button>
+                <button type="submit" class="usaalo-confirm btn hidden">
                     <?php _e('Confirmar y continuar al pago', 'usaalo-cotizador'); ?>
                 </button>
             </div>
-            <div class="price-container">
-                <span class="price-label"><?php _e('Precio Cotizado', 'usaalo-cotizador'); ?>:</span>
-                <div id="usaalo-price" class="price-total">0,00 $</div>
-            </div>
+            <span class="price-label"><?php _e('Precio Cotizado', 'usaalo-cotizador'); ?>:</span>
+            <div id="usaalo-price" class="price-total">0,00 $</div>
         </div>
     </form>
 </div>

@@ -141,6 +141,8 @@ class USAALO_Admin {
                 'ocultar' => __('Ocultar', 'usaalo-cotizador'),
                 'multiple' => __('Multiple', 'usaalo-cotizador'),
                 'simple' => __('Simple', 'usaalo-cotizador'),
+                'horizontal' => __('horizontal', 'usaalo-cotizador'),
+                'vertical' => __('vertical', 'usaalo-cotizador'),
             ],
             'countries_regions' => $countries_regions,
             'currency_symbol' => get_woocommerce_currency_symbol(),

@@ -361,7 +361,7 @@ class USAALO_MSSQL_Sync {
                         ':NombreAgencia'       => $nombre_agencia,
                         ':AceptoDispositivo'   => $acepto_disp
                     ];
-
+                    $this->log("Order {$order_id} - '{$plan_name_meta}' (datos para enviar: " . print_r($params, true) . ")");
                     $stmt->execute($params);
 
                     $this->log("✅ Pedido {$order_id} insertado a MSSQL - PlanID={$plan_id}, ServicioID={$servicio_id}, Pais='{$pais}'");

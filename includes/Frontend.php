@@ -4,8 +4,10 @@ if (!defined('ABSPATH')) exit;
 class USAALO_Frontend {
 
     public function __construct() {
-        add_shortcode('usaalo_cotizador', [$this, 'shortcode_render']);
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_shortcode('usaalo_cotizador_horizontal', [$this, 'shortcode_render_horizontal']);
+        add_shortcode('usaalo_cotizador_vertical', [$this, 'shortcode_render_vertical']);
+        add_action('wp_enqueue_scripts', [$this, 'register_assets']);
+        add_filter('the_posts', [$this, 'enqueue_assets_if_shortcode']);
 
         // AJAX para cotizador
         add_action('wp_ajax_usaalo_calculate_price', [$this, 'ajax_calculate_price']);
@@ -58,7 +60,9 @@ class USAALO_Frontend {
                 }
 
                 // Servicios
-                $item_data[] = ['name'=>'Servicios','value'=>implode(', ', $d['services'] ?? [])];
+                if (($config['show_data'] == 1) || ($config['show_voice'] == 1) || ($config['show_sms'] == 1)) {
+                    $item_data[] = ['name'=>'Servicios','value'=>implode(', ', $d['services'] ?? [])];
+                }
 
                 // Otros campos
                 $item_data[] = ['name'=>'Días','value'=>$d['days'] ?? ''];
@@ -69,42 +73,11 @@ class USAALO_Frontend {
             return $item_data;
         }, 10, 2);
 
-
-        /**
-         * Función para formatear y devolver los datos de usaalo_data
-         */
-        function usaalo_format_item_data($cart_item) {
-            if (empty($cart_item['usaalo_data'])) return '';
-
-            $config = get_option('usaalo_cotizador_config', []);
-            $d = $cart_item['usaalo_data'];
-
-            $html = '<ul class="usaalo-item-data" style="margin:5px 0; padding-left:15px; font-size:0.9em;">';
-            $html .= '<li><strong>Países:</strong> '.implode(', ', $d['countries'] ?? []).'</li>';
-
-            if (!isset($config['show_brand']) || $config['show_brand'] == 1) {
-                $html .= '<li><strong>Marca:</strong> '.esc_html($d['brand'] ?? '').'</li>';
-            }
-
-            if (!isset($config['show_model']) || $config['show_model'] == 1) {
-                $html .= '<li><strong>Modelo:</strong> '.esc_html($d['model'] ?? '').'</li>';
-            }
-
-            $html .= '<li><strong>Servicios:</strong> '.implode(', ', $d['services'] ?? []).'</li>';
-            $html .= '<li><strong>Días:</strong> '.intval($d['days'] ?? 0).'</li>';
-            $html .= '<li><strong>SIM:</strong> '.esc_html($d['sim'] ?? '').'</li>';
-            $html .= '<li><strong>Inicio:</strong> '.esc_html($d['start_date'] ?? '').'</li>';
-            $html .= '<li><strong>Fin:</strong> '.esc_html($d['end_date'] ?? '').'</li>';
-            $html .= '</ul>';
-
-            return $html;
-        }
-
         if (!is_admin()) {
             // Carrito
             add_filter('woocommerce_cart_item_name', function($product_name, $cart_item, $cart_item_key){
                 if (is_cart()) {
-                    return $product_name . usaalo_format_item_data($cart_item);
+                    return $product_name . $this->usaalo_format_item_data($cart_item);
                 }
                 return $product_name;
             }, 10, 3);
@@ -112,7 +85,7 @@ class USAALO_Frontend {
             // Checkout
             add_filter('woocommerce_checkout_cart_item_quantity', function($quantity_html, $cart_item, $cart_item_key){
                 if (is_checkout()) {
-                    return $quantity_html . usaalo_format_item_data($cart_item);
+                    return $quantity_html . $this->usaalo_format_item_data($cart_item);
                 }
                 return $quantity_html;
             }, 10, 3);
@@ -126,8 +99,12 @@ class USAALO_Frontend {
                     if (is_array($val)) $val = implode(', ', $val);
 
                     // No guardar marca/modelo si están ocultos
-                    if ($key === 'brand' && isset($config['show_brand']) && $config['show_brand'] == 0) continue;
-                    if ($key === 'model' && isset($config['show_model']) && $config['show_model'] == 0) continue;
+                    // if ($key === 'brand' && isset($config['show_brand']) && $config['show_brand'] == 0) continue;
+                    // if ($key === 'model' && isset($config['show_model']) && $config['show_model'] == 0) continue;
+                    // if ($key === 'model' && isset($config['show_data']) && $config['show_data'] == 0) continue;
+                    // if ($key === 'services' && isset($config['show_data']) && $config['show_data'] == 0) continue;
+                    // if ($key === 'services' && isset($config['show_voice']) && $config['show_voice'] == 0) continue;
+                    // if ($key === 'services' && isset($config['show_sms']) && $config['show_sms'] == 0) continue;
 
                     $item->add_meta_data('usaalo_'.$key, $val);
                 }
@@ -153,52 +130,63 @@ class USAALO_Frontend {
 
     }
 
+    /**
+     * Función para formatear y devolver los datos de usaalo_data
+     */
+    private function usaalo_format_item_data($cart_item) {
+        if (empty($cart_item['usaalo_data'])) return '';
+
+        $config = get_option('usaalo_cotizador_config', []);
+        $d = $cart_item['usaalo_data'];
+
+        $html = '<ul class="usaalo-item-data" style="margin:5px 0; padding-left:15px; font-size:0.9em;">';
+        $html .= '<li><strong>Países:</strong> '.implode(', ', $d['countries'] ?? []).'</li>';
+
+        if (!isset($config['show_brand']) || $config['show_brand'] == 1) {
+            $html .= '<li><strong>Marca:</strong> '.esc_html($d['brand'] ?? '').'</li>';
+        }
+
+        if (!isset($config['show_model']) || $config['show_model'] == 1) {
+            $html .= '<li><strong>Modelo:</strong> '.esc_html($d['model'] ?? '').'</li>';
+        }
+        if (($config['show_data'] == 1) || ($config['show_voice'] == 1) || ($config['show_sms'] == 1)) {
+            $html .= '<li><strong>Servicios:</strong> '.implode(', ', $d['services'] ?? []).'</li>';
+        }
+        
+        $html .= '<li><strong>Días:</strong> '.intval($d['days'] ?? 0).'</li>';
+        $html .= '<li><strong>SIM:</strong> '.esc_html($d['sim'] ?? '').'</li>';
+        $html .= '<li><strong>Inicio:</strong> '.esc_html($d['start_date'] ?? '').'</li>';
+        $html .= '<li><strong>Fin:</strong> '.esc_html($d['end_date'] ?? '').'</li>';
+        $html .= '</ul>';
+
+        return $html;
+    }
+
+    public static $last_mode = 'vertical'; // default
 
     /**
      * Encolar scripts y estilos
      */
-    public function enqueue_assets() {
+    // Se ejecuta SIEMPRE, registra los assets
+    public function register_assets() {
         $base = plugin_dir_url(dirname(__FILE__)) . 'assets/';
-        
-        // CSS
-        wp_enqueue_style('usaalo-select2', $base . 'lib/select2.min.css', [], '4.1.0');
-        wp_enqueue_style('usaalo-frontend', $base . 'css/frontend.css', [], time());
-        wp_enqueue_style('flatpickrcss', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.13');
-        wp_enqueue_style('tippycss', 'https://unpkg.com/tippy.js@6/dist/tippy.css', [], '6.3.7');
-
-        // JS
-        wp_enqueue_script('usaalo-select2', $base . 'lib/select2.min.js', ['jquery'], '4.1.0', true);
-        wp_enqueue_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.13', true);
-        wp_enqueue_script('tippy', 'https://unpkg.com/@popperjs/core@2', [], '2.11.8', true);
-        wp_enqueue_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], '6.3.7', true);
         // USAALO_VERSION
-        wp_enqueue_script('usaalo-frontend', $base . 'js/frontend.js', ['jquery', 'usaalo-select2', 'flatpickr'], time(), true);
+        // comunes
+        wp_register_style('usaalo-select2', $base.'lib/select2.min.css', [], time());
+        wp_register_script('usaalo-select2', $base.'lib/select2.min.js', ['jquery'], time(), true);
+        wp_register_style('flatpickrcss', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', [], '4.6.13');
+        wp_register_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', [], '4.6.13', true);
+        wp_register_script('flatpickrES','https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js', [], USAALO_VERSION, true);
+        wp_register_style('tippycss', 'https://unpkg.com/tippy.js@6/dist/tippy.css', [], '6.3.7');
+        wp_register_script('tippy', 'https://unpkg.com/@popperjs/core@2', [], '2.11.8', true);
+        wp_register_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], '6.3.7', true);
 
-        // Datos para JS
-        $cache = USAALO_Cache::load_for_frontend();
-        $services_data = USAALO_Helpers::servicios_disponibles_todos_modelos();
-        $config = get_option('usaalo_cotizador_config', []);
+        // específicos
+        wp_register_style('usaalo-frontend-horizontal', $base.'css/frontend-horizontal.css', ['usaalo-select2','flatpickrcss','tippycss'], time());
+        wp_register_script('usaalo-frontend-horizontal', $base.'js/frontend-horizontal.js', ['jquery','usaalo-select2','flatpickr','tippyjs'], time(), true);
 
-        wp_localize_script('usaalo-frontend', 'USAALO_Frontend', [
-            'ajaxurl'          => admin_url('admin-ajax.php'),
-            'nonce'            => wp_create_nonce('usaalo_frontend_nonce'),
-            'currency_symbol'  => get_woocommerce_currency_symbol(),
-            'allCountries'     => USAALO_Helpers::get_countries_with_availability(),
-            'allBrands'        => USAALO_Helpers::get_brands(),
-            'allModels'        => USAALO_Helpers::get_all_models(),
-            'simPrices'        => USAALO_Helpers::get_sim_prices(),
-            'shipping_cost'    => USAALO_Helpers::get_shipping_cost('CO'),
-            'i18n'             => [
-                'select_country' => __('Selecciona un país', 'usaalo-cotizador'),
-                'error'          => __('Ocurrió un error', 'usaalo-cotizador'),
-                'sim'          => __('Tu SIM para tu viaje 🌍', 'usaalo-cotizador'),
-                'servicio'          => __('Opciones disponibles para ti 🌟', 'usaalo-cotizador'),
-            ],
-            'products'         => $cache,
-            'TypeServices'     => $services_data,
-            'Config'           => $config,
-            'img_chip'         => $simIcon = '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim.png" width="18" height="18" style="vertical-align:middle;">'
-        ]);
+        wp_register_style('usaalo-frontend-vertical', $base.'css/frontend-vertical.css', ['usaalo-select2','flatpickrcss','tippycss'], time());
+        wp_register_script('usaalo-frontend-vertical', $base.'js/frontend-vertical.js', ['jquery','usaalo-select2','flatpickr','tippyjs'], time(), true);
     }
 
         
@@ -450,14 +438,114 @@ class USAALO_Frontend {
         return 1;
     }
 
+    public function enqueue_assets_if_shortcode($posts) {
+        if (empty($posts)) return $posts;
+
+        $found = false;
+        foreach ($posts as $post) {
+            if (has_shortcode($post->post_content, 'usaalo_cotizador_horizontal') ||
+                has_shortcode($post->post_content, 'usaalo_cotizador_vertical')) {
+                $found = true;
+                break;
+            }
+        }
+
+        if ($found) {
+            wp_enqueue_style('usaalo-select2');
+            wp_enqueue_style('flatpickrcss');
+            wp_enqueue_style('tippycss');
+
+            wp_enqueue_script('flatpickrES');
+            wp_enqueue_script('usaalo-select2');
+            wp_enqueue_script('flatpickr');
+            wp_enqueue_script('tippyjs');
+        }
+
+        return $posts;
+    }
+    
+
+
+
     /**
      * Renderiza el shortcode
      */
-    public function shortcode_render($atts = []) {
+    public function shortcode_render_horizontal() {
         $brands = USAALO_Helpers::get_brands();
+        wp_enqueue_style('usaalo-frontend-horizontal');
+        wp_enqueue_script('usaalo-frontend-horizontal');
+
+        // Datos para JS
+        $cache = USAALO_Cache::load_for_frontend();
+        $config = get_option('usaalo_cotizador_config', []);
+
+        wp_localize_script('usaalo-frontend-horizontal', 'USAALO_Frontend', [
+            'ajaxurl'          => admin_url('admin-ajax.php'),
+            'nonce'            => wp_create_nonce('usaalo_frontend_nonce'),
+            'currency_symbol'  => get_woocommerce_currency_symbol(),
+            'allCountries'     => USAALO_Helpers::get_countries_with_availability(),
+            'allBrands'        => USAALO_Helpers::get_brands(),
+            'allModels'        => USAALO_Helpers::get_all_models(),
+            'simPrices'        => USAALO_Helpers::get_sim_prices(),
+            'shipping_cost'    => USAALO_Helpers::get_shipping_cost('CO'),
+            'i18n'             => [
+                'select_country' => __('Selecciona un país', 'usaalo-cotizador'),
+                'error'          => __('Ocurrió un error', 'usaalo-cotizador'),
+                'sim'          => __('Tu SIM para tu viaje 🌍', 'usaalo-cotizador'),
+                'servicio'          => __('Opciones disponibles para ti 🌟', 'usaalo-cotizador'),
+                'costo_sim'          => __('La SimCard física genera un cobro adicional por el envío '.USAALO_Helpers::get_shipping_cost('CO').get_woocommerce_currency_symbol(), 'usaalo-cotizador')
+            ],
+            'modo'    => 'horizontal',
+            'products'         => $cache,
+            'Config'           => $config,
+            'img_chip'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim.png" width="18" height="18" style="vertical-align:middle;">',
+            'img_sim_fisica'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim-option.png" width="18" height="18" style="vertical-align:middle;">',
+            'img_sim_virtual'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/upc.png" width="18" height="18" style="vertical-align:middle;">'
+        ]);
+
         ob_start();
-        include plugin_dir_path(__FILE__) . 'templates/frontend-template.php';
+        include USAALO_PATH.'includes/templates/frontend-horizontal-template.php';
         return ob_get_clean();
     }
+
+    public function shortcode_render_vertical() {
+        wp_enqueue_style('usaalo-frontend-vertical');
+        wp_enqueue_script('usaalo-frontend-vertical');
+        $brands = USAALO_Helpers::get_brands();
+        // Datos para JS
+        $cache = USAALO_Cache::load_for_frontend();
+        // ⚡ Cachear servicios masivos para evitar error 500
+        $services_data = USAALO_Helpers::servicios_disponibles_todos_modelos();
+        $services_json = wp_json_encode($services_data); // convertir a JSON
+        $services_json = gzcompress($services_json, 9); // comprimir
+        $config = get_option('usaalo_cotizador_config', []);
+
+        wp_localize_script('usaalo-frontend-vertical', 'USAALO_Frontend', [
+            'ajaxurl'          => admin_url('admin-ajax.php'),
+            'nonce'            => wp_create_nonce('usaalo_frontend_nonce'),
+            'currency_symbol'  => get_woocommerce_currency_symbol(),
+            'allCountries'     => USAALO_Helpers::get_countries_with_availability(),
+            'allBrands'        => USAALO_Helpers::get_brands(),
+            'allModels'        => USAALO_Helpers::get_all_models(),
+            'simPrices'        => USAALO_Helpers::get_sim_prices(),
+            'shipping_cost'    => USAALO_Helpers::get_shipping_cost('CO'),
+            'i18n'             => [
+                'select_country' => __('Selecciona un país', 'usaalo-cotizador'),
+                'error'          => __('Ocurrió un error', 'usaalo-cotizador'),
+                'sim'          => __('Tu SIM para tu viaje 🌍', 'usaalo-cotizador'),
+                'servicio'          => __('Opciones disponibles para ti 🌟', 'usaalo-cotizador'),
+            ],
+            'modo'    => 'vertical',
+            'products'         => $cache,
+            'TypeServices'     => $services_json,
+            'Config'           => $config,
+            'img_chip'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim.png" width="18" height="18" style="vertical-align:middle;">'
+        ]);
+
+        ob_start();
+        include USAALO_PATH.'includes/templates/frontend-vertical-template.php';
+        return ob_get_clean();
+    }
+
 
 }
