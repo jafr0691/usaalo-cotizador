@@ -86,21 +86,35 @@ jQuery(document).ready(function($){
             if(!c.disponible) opt.prop('disabled',true).on('mousedown',e=>{ e.preventDefault(); showMessage((c.name||code)+' estará disponible próximamente'); });
             $country.append(opt);
         });
+
         if(CONFIG.select_pais==0) $country.removeAttr('multiple'); else $country.attr('multiple','multiple');
         if($country.hasClass('select2-hidden-accessible')) $country.select2('destroy');
-        $country.select2({
-            width:'100%',
-            placeholder:'<svg class="uitk-icon uitk-field-icon" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7.953 5.552C8.992 4.592 10.388 4 12 4c1.612 0 3.008.592 4.047 1.552l.007.006A5.88 5.88 0 0 1 18 9.93c0 1.557-.664 3.032-1.641 4.462-.98 1.433-2.418 3.025-4.359 4.774-1.941-1.75-3.38-3.341-4.359-4.774C6.661 12.958 6 11.492 6 9.929a5.88 5.88 0 0 1 1.946-4.37l.007-.007zM12 2c-2.12 0-3.998.785-5.4 2.08A7.88 7.88 0 0 0 4 9.93c0 2.14.908 4.006 1.99 5.59 1.216 1.778 3.001 3.69 5.354 5.735a1 1 0 0 0 1.312 0c2.353-2.045 4.138-3.957 5.354-5.735C19.09 13.938 20 12.063 20 9.93a7.88 7.88 0 0 0-2.6-5.85C15.999 2.785 14.12 2 12 2zm0 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" clip-rule="evenodd"></path></svg> Elige tu país para empezar',
-            templateResult:formatCountry,
-            templateSelection:formatCountry,
-            escapeMarkup: m=>m,
-            language:'es',
-            allowClear:true
-        });
+        if(CONFIG.select_pais==0){
+            $country.select2({
+                width:'100%',
+                placeholder: '<svg class="uitk-icon uitk-field-icon" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7.953 5.552C8.992 4.592 10.388 4 12 4c1.612 0 3.008.592 4.047 1.552l.007.006A5.88 5.88 0 0 1 18 9.93c0 1.557-.664 3.032-1.641 4.462-.98 1.433-2.418 3.025-4.359 4.774-1.941-1.75-3.38-3.341-4.359-4.774C6.661 12.958 6 11.492 6 9.929a5.88 5.88 0 0 1 1.946-4.37l.007-.007zM12 2c-2.12 0-3.998.785-5.4 2.08A7.88 7.88 0 0 0 4 9.93c0 2.14.908 4.006 1.99 5.59 1.216 1.778 3.001 3.69 5.354 5.735a1 1 0 0 0 1.312 0c2.353-2.045 4.138-3.957 5.354-5.735C19.09 13.938 20 12.063 20 9.93a7.88 7.88 0 0 0-2.6-5.85C15.999 2.785 14.12 2 12 2zm0 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" clip-rule="evenodd"></path></svg> País de destino',
+                templateResult:formatCountry,
+                templateSelection:formatCountry,
+                escapeMarkup: m=>m,
+                language:'es',
+                allowClear:true
+            });
+        }else{
+            $country.select2({
+                width:'100%',
+                placeholder: 'País de destino',
+                templateResult:formatCountry,
+                templateSelection:formatCountry,
+                escapeMarkup: m=>m,
+                language:'es',
+                allowClear:true
+            });
+        }
         // Quitar el title del placeholder
         $('#select2-country-container').removeAttr('title');
     }
     loadCountries();
+
     // Muestras loader al inicio
     $loaderMini.show();
     $divform.hide(); // ocultamos el formulario
@@ -162,7 +176,7 @@ jQuery(document).ready(function($){
        Flatpickr fechas
        ========================= */
     if(typeof flatpickr==='function'){
-        flatpickr("#SIM_dates", {
+        const picker = flatpickr("#SIM_dates", {
             mode: "range",
             dateFormat: "Y-m-d",   // valor interno para enviar al backend
             altInput: true,        // input visible amigable
@@ -182,6 +196,9 @@ jQuery(document).ready(function($){
                     calculateQuote();
                 }
             }
+        });
+        document.getElementById("openCalendar").addEventListener("click", () => {
+            picker.open();
         });
     }
 
@@ -415,14 +432,20 @@ jQuery(document).ready(function($){
        ========================= */
     function calculateQuote(){
         const countries = getSelectedCountries();
-        if(!countries.length || !SIM_START || !SIM_END){ $priceBtn.text(`0,00${CURRENCY}`); return; }
+        if(!countries.length || !SIM_START || !SIM_END){ 
+            $('.arrow').text('→')
+            $('.usaalo-confirm').prop('disabled', true);
+            $priceBtn.text(`${CURRENCY}0,00`); 
+            return; 
+        }
 
         const result = getPrices(countries, SIM_DAYS);
         let total = parseFloat(result.total_price||0);
         const simType = $('input[name="sim_type"]:checked').val();
         if(simType==='sim') total+=SHIPPING_COST;
         
-        $priceBtn.stop(true).fadeOut(100, function(){ $(this).text(total.toFixed(2)+CURRENCY).fadeIn(150); });
+        $priceBtn.stop(true).fadeOut(100, function(){ $(this).text(CURRENCY+total.toFixed(2)).fadeIn(150); });
+        $('.arrow').text('Pagar')
         $('.usaalo-confirm').prop('disabled', false);
     }
 

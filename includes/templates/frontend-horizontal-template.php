@@ -1,6 +1,5 @@
 <?php
 $config = get_option('usaalo_cotizador_config', []);
-$simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-sim.png" alt="SIM" width="18" height="18" class="sim-icon">';
 ?>
 <div id="usaalo-loader" class="usaalo-loader hidden">
     <div class="loader-content">
@@ -13,7 +12,7 @@ $simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-s
         
         <!-- País -->
         <fieldset class="field country-block field-wrapper">
-            <legend><?php _e('🌍 ¿Qué destino vas a visitar?', 'usaalo-cotizador'); ?></legend>
+            <legend><?php _e('¿Qué destino vas a visitar?', 'usaalo-cotizador'); ?></legend>
             <label for="country" class="sr-only"><?php _e('Selecciona país', 'usaalo-cotizador'); ?></label>
             <div class="input-wrapper">
                 <select id="country" name="country[]" multiple class="usaalo-select" aria-describedby="services-help"></select>
@@ -23,9 +22,12 @@ $simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-s
 
         <!-- Fechas -->
         <fieldset class="field date-block field-wrapper">
-            <legend><?php _e('📅 Fechas', 'usaalo-cotizador'); ?></legend>
-            <label for="SIM_dates" class="sr-only"><?php _e('Selecciona fechas de tu viaje', 'usaalo-cotizador'); ?></label>
-            <div class="input-wrapper">
+            <legend><?php _e('Fechas', 'usaalo-cotizador'); ?></legend>
+            <label for="SIM_dates" class="sr-only">
+                <?php _e('Selecciona fechas de tu viaje', 'usaalo-cotizador'); ?>
+            </label>
+            
+            <div class="date-input-wrapper">
                 <input 
                     type="text" 
                     id="SIM_dates" 
@@ -35,13 +37,17 @@ $simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-s
                     autocomplete="off" 
                     required
                 >
+                <button type="button" id="openCalendar" class="calendar-btn">
+                    <i class="fa-regular fa-calendar"></i>
+                </button>
             </div>
         </fieldset>
+
 
         <!-- Marca -->
         <?php if (!empty($config['show_brand'])): ?>
         <fieldset class="field brand-block field-wrapper">
-            <legend><?php _e('📱 Dispositivo que usarás', 'usaalo-cotizador'); ?></legend>
+            <legend><?php _e('Dispositivo que usarás', 'usaalo-cotizador'); ?></legend>
             <label for="brand" class="sr-only"><?php _e('Selecciona tu marca', 'usaalo-cotizador'); ?></label>
             <div class="input-wrapper">
                 <select id="brand" name="brand" class="usaalo-select">
@@ -55,7 +61,7 @@ $simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-s
             <!-- Modelo -->
             <?php if (!empty($config['show_model'])): ?>
             <fieldset class="field model-block field-wrapper">
-                <legend><?php _e('📱 Modelo', 'usaalo-cotizador'); ?></legend>
+                <legend><?php _e('Modelo', 'usaalo-cotizador'); ?></legend>
                 <label for="model" class="sr-only"><?php _e('Selecciona tu modelo', 'usaalo-cotizador'); ?></label>
                 <div class="input-wrapper">
                     <select id="model" name="model" class="usaalo-select"></select>
@@ -69,18 +75,21 @@ $simIcon = '<img src="' . plugin_dir_url(__FILE__) . '../../assets/img/tarjeta-s
 
         <!-- SIM & Servicios -->
         <fieldset class="field sim-block field-wrapper">
-            <legend><?php echo $simIcon; ?> <?php _e('Tipo de SimCard', 'usaalo-cotizador'); ?></legend>
+            <legend><?php _e('Tipo de SimCard', 'usaalo-cotizador'); ?></legend>
             <div class="input-wrapper">
                 <div id="usaalo-sim-buttons-horizontal" class="sim-options"></div>
             </div>
         </fieldset>
 
         <!-- Botón precio / checkout -->
-        <div class="checkout-block">
+        <div class="checkout-block tooltip">
             <button type="submit" class="usaalo-confirm" aria-live="polite" disabled>
                 <span id="usaalo-price-inline">0,00$</span>
                 <span class="arrow">→</span>
             </button>
+            <span class="tooltip-text"> 
+                Una vez completo el formulario, haga clic aquí para pagar
+            </span>
         </div>
 
     </form>

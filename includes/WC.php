@@ -19,7 +19,7 @@ class USAALO_Checkout_Fields {
 
         wp_enqueue_script(
             'usaalo-checkout',
-            plugin_dir_url(__FILE__) . '../assets/js/usaalo-checkout.js',
+            USAALO_URL . '/assets/js/usaalo-checkout.js',
             ['jquery'],
             '1.0.0',
             true
@@ -27,7 +27,7 @@ class USAALO_Checkout_Fields {
 
         wp_enqueue_style(
             'usaalo-checkout',
-            plugin_dir_url(__FILE__) . '../assets/css/usaalo-checkout.css',
+            USAALO_URL . '/assets/css/usaalo-checkout.css',
             [],
             '1.0.0'
         );
@@ -235,18 +235,58 @@ class USAALO_Checkout_Fields {
      */
     private function get_cart_summary() {
         $summary = [
-            'sim' => '',
-            'servicio' => '',
+            'sim'        => '',
+            'servicio'   => '',
             'valor_plan' => '',
+            'dias'       => '',
+            'fecha_inicio' => '',
+            'fecha_fin'    => '',
+            'paises'     => [],
         ];
-        if ( ! WC()->cart ) return $summary;
-        foreach ( WC()->cart->get_cart() as $cart_item ) {
-            if ( isset($cart_item['tipo_sim']) ) $summary['sim'] = $cart_item['tipo_sim'];
-            if ( isset($cart_item['servicio']) ) $summary['servicio'] = $cart_item['servicio'];
-            if ( isset($cart_item['valor_plan']) ) $summary['valor_plan'] = $cart_item['valor_plan'];
+
+        if ( ! WC()->cart ) {
+            return $summary;
         }
+
+        foreach ( WC()->cart->get_cart() as $cart_item ) {
+            if ( isset($cart_item['usaalo_data']) && is_array($cart_item['usaalo_data']) ) {
+                $data = $cart_item['usaalo_data'];
+
+                if ( isset($data['sim']) ) {
+                    $summary['sim'] = $data['sim'];
+                }
+
+                if ( isset($data['services']) && is_array($data['services']) ) {
+                    $summary['servicio'] = implode(', ', $data['services']);
+                }
+
+                if ( isset($data['custom_price']) ) {
+                    $summary['valor_plan'] = $data['custom_price'];
+                } elseif ( isset($cart_item['line_total']) ) {
+                    $summary['valor_plan'] = $cart_item['line_total'];
+                }
+
+                if ( isset($data['days']) ) {
+                    $summary['dias'] = $data['days'];
+                }
+
+                if ( isset($data['start_date']) ) {
+                    $summary['fecha_inicio'] = $data['start_date'];
+                }
+
+                if ( isset($data['end_date']) ) {
+                    $summary['fecha_fin'] = $data['end_date'];
+                }
+
+                if ( isset($data['countries']) && is_array($data['countries']) ) {
+                    $summary['paises'] = $data['countries'];
+                }
+            }
+        }
+
         return $summary;
     }
+
 
     /**
      * Obtener resumen del carrito (datos cotizador)

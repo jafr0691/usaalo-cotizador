@@ -171,6 +171,7 @@ class USAALO_Frontend {
     public function register_assets() {
         $base = plugin_dir_url(dirname(__FILE__)) . 'assets/';
         // USAALO_VERSION
+        wp_register_style('fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css', [], '6.5.1');
         // comunes
         wp_register_style('usaalo-select2', $base.'lib/select2.min.css', [], time());
         wp_register_script('usaalo-select2', $base.'lib/select2.min.js', ['jquery'], time(), true);
@@ -182,10 +183,10 @@ class USAALO_Frontend {
         wp_register_script('tippyjs', 'https://unpkg.com/tippy.js@6', ['tippy'], '6.3.7', true);
 
         // específicos
-        wp_register_style('usaalo-frontend-horizontal', $base.'css/frontend-horizontal.css', ['usaalo-select2','flatpickrcss','tippycss'], time());
+        wp_register_style('usaalo-frontend-horizontal', $base.'css/frontend-horizontal.css', ['fontawesome', 'usaalo-select2','flatpickrcss','tippycss'], time());
         wp_register_script('usaalo-frontend-horizontal', $base.'js/frontend-horizontal.js', ['jquery','usaalo-select2','flatpickr','tippyjs'], time(), true);
 
-        wp_register_style('usaalo-frontend-vertical', $base.'css/frontend-vertical.css', ['usaalo-select2','flatpickrcss','tippycss'], time());
+        wp_register_style('usaalo-frontend-vertical', $base.'css/frontend-vertical.css', ['fontawesome', 'usaalo-select2','flatpickrcss','tippycss'], time());
         wp_register_script('usaalo-frontend-vertical', $base.'js/frontend-vertical.js', ['jquery','usaalo-select2','flatpickr','tippyjs'], time(), true);
     }
 
@@ -471,6 +472,10 @@ class USAALO_Frontend {
      * Renderiza el shortcode
      */
     public function shortcode_render_horizontal() {
+        // Forzar fontawesome
+        if (!wp_style_is('fontawesome', 'enqueued') && !wp_style_is('fontawesome', 'done')) {
+            wp_enqueue_style('fontawesome');
+        }
         $brands = USAALO_Helpers::get_brands();
         wp_enqueue_style('usaalo-frontend-horizontal');
         wp_enqueue_script('usaalo-frontend-horizontal');
@@ -498,9 +503,8 @@ class USAALO_Frontend {
             'modo'    => 'horizontal',
             'products'         => $cache,
             'Config'           => $config,
-            'img_chip'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim.png" width="18" height="18" style="vertical-align:middle;">',
-            'img_sim_fisica'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/tarjeta-sim-option.png" width="18" height="18" style="vertical-align:middle;">',
-            'img_sim_virtual'         => '<img id="todos-check-icon" src="' . USAALO_URL . '/assets/img/upc.png" width="18" height="18" style="vertical-align:middle;">'
+            'img_sim_fisica'         => '<i class="fa-thin fa-sim-card"></i>',
+            'img_sim_virtual'         => '<i class="fa-solid fa-microchip"></i>'
         ]);
 
         ob_start();
@@ -509,6 +513,10 @@ class USAALO_Frontend {
     }
 
     public function shortcode_render_vertical() {
+        // Forzar fontawesome
+        if (!wp_style_is('fontawesome', 'enqueued') && !wp_style_is('fontawesome', 'done')) {
+            wp_enqueue_style('fontawesome');
+        }
         wp_enqueue_style('usaalo-frontend-vertical');
         wp_enqueue_script('usaalo-frontend-vertical');
         $brands = USAALO_Helpers::get_brands();
