@@ -27,11 +27,11 @@ function usaalo_load_textdomain() {
 add_action('plugins_loaded', 'usaalo_load_textdomain');
 
 // Incluir archivos necesarios
-require_once USAALO_PATH . 'includes/install.php';
-require_once USAALO_PATH . 'includes/helpers.php';
-require_once USAALO_PATH . 'includes/admin.php';
-require_once USAALO_PATH . 'includes/frontend.php';
-require_once USAALO_PATH . 'includes/ajax.php';
+require_once USAALO_PATH . 'includes/Install.php';
+require_once USAALO_PATH . 'includes/Helpers.php';
+require_once USAALO_PATH . 'includes/Admin.php';
+require_once USAALO_PATH . 'includes/Frontend.php';
+require_once USAALO_PATH . 'includes/Ajax.php';
 require_once USAALO_PATH . 'includes/class-usaalo-cache.php';
 require_once USAALO_PATH . 'includes/WC.php';
 require_once USAALO_PATH . 'includes/class-usaalo-mssql-sync.php';
@@ -42,7 +42,8 @@ register_activation_hook(__FILE__, ['USAALO_Installer', 'activate']);
 // Desactivación del plugin
 register_deactivation_hook(__FILE__, ['USAALO_Installer', 'deactivate']);
 
-
+// Desinstalación del plugin
+register_uninstall_hook(__FILE__, ['USAALO_Installer', 'uninstall']);
 
 // Inicializar clases según el contexto (admin o frontend)
 add_action('init', function() {
@@ -62,7 +63,9 @@ add_action('init', function() {
         new USAALO_Checkout_Fields(); // campos en checkout
         new USAALO_MSSQL_Sync();      // sincronización MSSQL
     }
+
 });
+
 
 
 

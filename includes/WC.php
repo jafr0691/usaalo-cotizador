@@ -19,7 +19,7 @@ class USAALO_Checkout_Fields {
 
         wp_enqueue_script(
             'usaalo-checkout',
-            plugin_dir_url(__FILE__) . '../assets/js/usaalo-checkout.js',
+            USAALO_URL . '/assets/js/usaalo-checkout.js',
             ['jquery'],
             '1.0.0',
             true
@@ -27,7 +27,7 @@ class USAALO_Checkout_Fields {
 
         wp_enqueue_style(
             'usaalo-checkout',
-            plugin_dir_url(__FILE__) . '../assets/css/usaalo-checkout.css',
+            USAALO_URL . '/assets/css/usaalo-checkout.css',
             [],
             '1.0.0'
         );
@@ -51,7 +51,7 @@ class USAALO_Checkout_Fields {
         // Tipo de documento
         woocommerce_form_field('tipo_id', [
             'type' => 'select',
-            'label' => __('Tipo de documento'),
+            'label' => __('Tipo de documento', 'usaalo-cotizador'),
             'required' => true,
             'options' => [
                 '' => 'Seleccionar...',
@@ -67,7 +67,7 @@ class USAALO_Checkout_Fields {
         // Número documento
         woocommerce_form_field('documento_id', [
             'type' => 'text',
-            'label' => __('Número de documento'),
+            'label' => __('Número de documento', 'usaalo-cotizador'),
             'required' => true,
             'class' => ['form-row-last'],
         ], $checkout->get_value('documento_id'));
@@ -75,134 +75,125 @@ class USAALO_Checkout_Fields {
         // WhatsApp
         woocommerce_form_field('whatsapp', [
             'type' => 'tel',
-            'label' => __('Número de WhatsApp'),
+            'label' => __('Número de WhatsApp', 'usaalo-cotizador'),
             'required' => true,
             'class' => ['form-row-wide'],
         ], $checkout->get_value('whatsapp'));
 
-        // Motivo de viaje
+        // // Motivo de viaje
+        // woocommerce_form_field('motivo_viaje', [
+        //     'type' => 'select',
+        //     'label' => __('Motivo del viaje'),
+        //     'required' => true,
+        //     'options' => [
+        //         '' => 'Seleccionar...',
+        //         'turismo' => 'Turismo',
+        //         'trabajo' => 'Trabajo',
+        //         'estudio' => 'Estudio',
+        //         'otros'   => 'Otros',
+        //     ]
+        // ], $checkout->get_value('motivo_viaje'));
+        // Motivo de viaje (oculto, valor fijo "otros")
         woocommerce_form_field('motivo_viaje', [
-            'type' => 'select',
-            'label' => __('Motivo del viaje'),
+            'type'  => 'hidden',
+            'label' => false,
             'required' => true,
-            'options' => [
-                '' => 'Seleccionar...',
-                'turismo' => 'Turismo',
-                'trabajo' => 'Trabajo',
-                'estudio' => 'Estudio',
-                'otros'   => 'Otros',
-            ]
-        ], $checkout->get_value('motivo_viaje'));
+            'default' => 'Otros',
+        ], $checkout->get_value('motivo_viaje') ?: 'Otros');
 
         // IMEI
         woocommerce_form_field('imei', [
-            'type' => 'text',
-            'label' => __('Número IMEI'),
-            'required' => true,
+            'type'        => 'text',
+            'label'       => __('Número IMEI', 'usaalo-cotizador'),
+            'required'    => true,
+            'description' => __('Marca *#06# en tu celular o revisa en Ajustes > Información del dispositivo.', 'usaalo-cotizador'),
         ], $checkout->get_value('imei'));
 
-        // EID (solo eSIM, se oculta por JS)
+        // EID
         woocommerce_form_field('eid', [
-            'type' => 'text',
-            'label' => __('Número EID (solo eSIM)'),
-            'required' => false,
+            'type'        => 'text',
+            'label'       => __('Número EID (solo eSIM)', 'usaalo-cotizador'),
+            'required'    => false,
+            'description' => __('Se encuentra en Ajustes > Información del dispositivo (solo en equipos con eSIM).', 'usaalo-cotizador'),
         ], $checkout->get_value('eid'));
 
-        // ¿En crucero?
-        woocommerce_form_field('en_crucero', [
-            'type' => 'checkbox',
-            'label' => __('¿El viajero estará en crucero?'),
-        ], $checkout->get_value('en_crucero'));
-
-        // Llamada entrante (solo si plan incluye VOZ, se oculta por JS)
-        woocommerce_form_field('llamada_entrante', [
+        // Desvio Llamadas (solo si plan incluye VOZ, se oculta por JS)
+        woocommerce_form_field('desvio_llamadas', [
             'type' => 'select',
-            'label' => __('Para la llamada entrante de Colombia'),
+            'label' => __('Para la llamada entrante de Colombia', 'usaalo-cotizador'),
             'options' => [
                 '' => 'Seleccionar...',
                 'no' => 'No',
                 'transferencia' => 'Transferencia de llamadas',
                 'fijo' => 'Número fijo en Colombia'
             ]
-        ], $checkout->get_value('llamada_entrante'));
+        ], $checkout->get_value('desvio_llamadas') ?: 'No');
 
         // Agencia
         woocommerce_form_field('es_agencia', [
             'type' => 'select',
-            'label' => __('¿Es agencia?'),
+            'label' => __('¿Es agencia?', 'usaalo-cotizador'),
             'options' => [
                 '' => 'Seleccionar...',
                 'no' => 'No',
                 'si' => 'Sí',
             ]
-        ], $checkout->get_value('es_agencia'));
+        ], $checkout->get_value('es_agencia') ?: 'No');
 
         // Nombre de agencia
         woocommerce_form_field('nombre_agencia', [
             'type' => 'text',
-            'label' => __('Nombre de la agencia'),
+            'label' => __('Nombre de la agencia', 'usaalo-cotizador'),
         ], $checkout->get_value('nombre_agencia'));
 
         // Asesor comercial
         woocommerce_form_field('asesor_comercial', [
             'type' => 'text',
-            'label' => __('Asesor comercial'),
+            'label' => __('Asesor comercial', 'usaalo-cotizador'),
         ], $checkout->get_value('asesor_comercial'));
 
         // Puntos Colombia (solo si NO es agencia)
         woocommerce_form_field('puntos_colombia', [
             'type' => 'text',
-            'label' => __('Número de socio Puntos Colombia'),
+            'label' => __('Número de socio Puntos Colombia', 'usaalo-cotizador'),
         ], $checkout->get_value('puntos_colombia'));
 
-        // LifeMiles
-        woocommerce_form_field('lifemiles', [
-            'type' => 'text',
-            'label' => __('Número LifeMiles'),
-        ], $checkout->get_value('lifemiles'));
-
-        // Observaciones
-        woocommerce_form_field('observacion', [
-            'type' => 'textarea',
-            'label' => __('Observación'),
-        ], $checkout->get_value('observacion'));
-
-        // Valor plan cotizado (precargado)
-        woocommerce_form_field('valor_plan', [
-            'type' => 'text',
-            'label' => __('Valor plan cotizado'),
-            'required' => false,
-            'custom_attributes' => ['readonly' => 'readonly'],
-        ], $checkout->get_value('valor_plan'));
+        // ¿En crucero?
+        woocommerce_form_field('en_crucero', [
+            'type' => 'checkbox',
+            'label' => __('NO PRESTAMOS SERVICIO EN CRUCERO', 'usaalo-cotizador'),
+            'description' => __('Al momento de abordar el crucero solicitamos RETIRAR la Sim Card USAALÓ, ya que, en caso de no hacerlo, se presentarán cobros adicionales por la utilización del servicio de mínimo 10 USD por minuto.', 'usaalo-cotizador'),
+            'required' => true,
+        ], $checkout->get_value('en_crucero'));
 
         // Checkboxes obligatorios
         woocommerce_form_field('responsabilidad', [
             'type' => 'checkbox',
-            'label' => __('Soy el único responsable de la utilización del servicio.'),
+            'label' => __('Soy el único responsable de la utilización del servicio.', 'usaalo-cotizador'),
             'required' => true,
         ], $checkout->get_value('responsabilidad'));
 
         woocommerce_form_field('terminos', [
             'type' => 'checkbox',
-            'label' => __('He leído y acepto los términos y condiciones.'),
+            'label' => __('He leído y acepto los términos y condiciones.', 'usaalo-cotizador'),
             'required' => true,
         ], $checkout->get_value('terminos'));
 
         woocommerce_form_field('cookies', [
             'type' => 'checkbox',
-            'label' => __('Acepto el uso de cookies.'),
+            'label' => __('Acepto el uso de cookies.', 'usaalo-cotizador'),
             'required' => true,
         ], $checkout->get_value('cookies'));
 
         woocommerce_form_field('activacion_unica', [
             'type' => 'checkbox',
-            'label' => __('Acepto que la activación es única para el dispositivo.'),
+            'label' => __('Acepto que la activación es única para el dispositivo.', 'usaalo-cotizador'),
             'required' => true,
         ], $checkout->get_value('activacion_unica'));
 
         woocommerce_form_field('acepto_dispositivo', [
             'type' => 'checkbox',
-            'label' => __('Acepto el uso de este dispositivo para el servicio.'),
+            'label' => __('Acepto el uso de este dispositivo para el servicio.', 'usaalo-cotizador'),
             'required' => true,
         ], $checkout->get_value('acepto_dispositivo'));
 
@@ -213,7 +204,7 @@ class USAALO_Checkout_Fields {
      * Validar campos obligatorios
      */
     public function validar_campos() {
-        $requeridos = ['tipo_id','documento_id','whatsapp','motivo_viaje','marca_telefono','modelo_telefono','imei','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
+        $requeridos = ['tipo_id','documento_id','whatsapp','motivo_viaje','imei','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
 
         foreach ($requeridos as $campo) {
             if ( empty($_POST[$campo]) ) {
@@ -230,7 +221,7 @@ class USAALO_Checkout_Fields {
      * Guardar en order meta
      */
     public function guardar_campos($order_id) {
-        $campos = ['tipo_id','documento_id','whatsapp','motivo_viaje','marca_telefono','modelo_telefono','imei','eid','en_crucero','llamada_entrante','es_agencia','nombre_agencia','asesor_comercial','puntos_colombia','lifemiles','observacion','valor_plan','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
+        $campos = ['tipo_id','documento_id','whatsapp','motivo_viaje','imei','eid','en_crucero','llamada_entrante','es_agencia','nombre_agencia','asesor_comercial','puntos_colombia','responsabilidad','terminos','cookies','activacion_unica','acepto_dispositivo'];
 
         foreach ($campos as $campo) {
             if ( isset($_POST[$campo]) ) {
@@ -244,18 +235,58 @@ class USAALO_Checkout_Fields {
      */
     private function get_cart_summary() {
         $summary = [
-            'sim' => '',
-            'servicio' => '',
+            'sim'        => '',
+            'servicio'   => '',
             'valor_plan' => '',
+            'dias'       => '',
+            'fecha_inicio' => '',
+            'fecha_fin'    => '',
+            'paises'     => [],
         ];
-        if ( ! WC()->cart ) return $summary;
-        foreach ( WC()->cart->get_cart() as $cart_item ) {
-            if ( isset($cart_item['tipo_sim']) ) $summary['sim'] = $cart_item['tipo_sim'];
-            if ( isset($cart_item['servicio']) ) $summary['servicio'] = $cart_item['servicio'];
-            if ( isset($cart_item['valor_plan']) ) $summary['valor_plan'] = $cart_item['valor_plan'];
+
+        if ( ! WC()->cart ) {
+            return $summary;
         }
+
+        foreach ( WC()->cart->get_cart() as $cart_item ) {
+            if ( isset($cart_item['usaalo_data']) && is_array($cart_item['usaalo_data']) ) {
+                $data = $cart_item['usaalo_data'];
+
+                if ( isset($data['sim']) ) {
+                    $summary['sim'] = $data['sim'];
+                }
+
+                if ( isset($data['services']) && is_array($data['services']) ) {
+                    $summary['servicio'] = implode(', ', $data['services']);
+                }
+
+                if ( isset($data['custom_price']) ) {
+                    $summary['valor_plan'] = $data['custom_price'];
+                } elseif ( isset($cart_item['line_total']) ) {
+                    $summary['valor_plan'] = $cart_item['line_total'];
+                }
+
+                if ( isset($data['days']) ) {
+                    $summary['dias'] = $data['days'];
+                }
+
+                if ( isset($data['start_date']) ) {
+                    $summary['fecha_inicio'] = $data['start_date'];
+                }
+
+                if ( isset($data['end_date']) ) {
+                    $summary['fecha_fin'] = $data['end_date'];
+                }
+
+                if ( isset($data['countries']) && is_array($data['countries']) ) {
+                    $summary['paises'] = $data['countries'];
+                }
+            }
+        }
+
         return $summary;
     }
+
 
     /**
      * Obtener resumen del carrito (datos cotizador)
@@ -277,6 +308,13 @@ class USAALO_Checkout_Fields {
         $payment     = $order->get_payment_method_title();
         $order_total = $order->get_total();
         $order_sub   = $order->get_subtotal();
+
+        $custom_logo_id = get_theme_mod('custom_logo');
+        $logo_url = $custom_logo_id ? 
+            wp_get_attachment_image_url($custom_logo_id, 'full') : 
+            'https://grupozona.es/wp-content/uploads/2024/06/logo-usaalo.png';
+
+
 
         // Keys posibles donde puede estar guardado el id de Puntos Colombia (adáptalo si usas otro)
         $pco_meta_keys = ['PCO_id','_PCO_id','puntos_colombia_id'];
@@ -430,7 +468,7 @@ class USAALO_Checkout_Fields {
             <div style='font-family:Arial, sans-serif; background:#f6f6f6; padding:20px;'>
                 <table width='600' align='center' cellpadding='0' cellspacing='0' style='background:#fff;border-radius:8px;overflow:hidden;'>
                     <tr><td style='background:{$c_dark};padding:18px;text-align:center;'>
-                        <img src='https://grupozona.es/wp-content/uploads/2024/06/logo-usaalo.png' alt='UsaAlo' style='max-width:180px;'>
+                        <img src='{$logo_url}' alt='UsaAlo' style='max-width:180px;'>
                     </td></tr>
                     <tr><td style='padding:18px;text-align:center;background:{$c_orange};color:#fff;font-weight:700;font-size:18px;'>{$title}</td></tr>
                     <tr><td style='padding:20px;color:{$c_gray};font-size:14px;line-height:1.6;'>{$content_html}</td></tr>

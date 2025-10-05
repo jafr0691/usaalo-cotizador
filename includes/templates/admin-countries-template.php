@@ -1,8 +1,19 @@
+<?php
+    $config = get_option('usaalo_cotizador_config', []); // Obtiene todo el array
+    $select_pais = isset($config['select_pais']) ? $config['select_pais'] : 1;
+?>
 <div class="wrap">
     <h1><?php _e('Configuración de Paises', 'usaalo-cotizador'); ?></h1>
     <p><?php _e('Gestiona planes, países, marcas y modelos para el cotizador', 'usaalo-cotizador'); ?></p>
-
-    <h2><?php _e('Países', 'usaalo-cotizador'); ?></h2>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <h2><?php _e('Países', 'usaalo-cotizador'); ?></h2>
+        <!-- Toggle Marca -->
+        <label class="switch">
+            <input type="checkbox" class="usaalo-toggle" data-key="select_pais" <?php checked($select_pais, 1); ?>>
+            <span class="slider round"></span>
+        </label>
+        <span id="pais-status" style="font-weight:bold;"></span>
+    </div>
     <button class="button add-country"><?php _e('Agregar País','usaalo-cotizador');?></button>
     <table id="usaalo-countries-table" class="widefat striped">
         <thead><tr>

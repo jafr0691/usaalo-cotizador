@@ -1,0 +1,678 @@
+/* ========================
+   Contenedor principal
+======================== */
+#usaalo-cotizador-wizard {
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    background-color: #fff;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+#usaalo-price {
+    max-width: 120px;
+}
+
+/* ========================
+   Pasos
+======================== */
+.step { display: none; margin-bottom: 16px; }
+.step.active { display: block; }
+
+/* ========================
+   Indicadores de pasos
+======================== */
+.usaalo-steps {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 0;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+.usaalo-steps li {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-bottom: 2px solid #d1d5db;
+    font-weight: 600;
+    color: inherit;
+}
+.usaalo-steps li.active {
+    border-color: #0073aa;
+    color: #0073aa;
+}
+
+/* ========================
+   Etiquetas y campos
+======================== */
+#usaalo-quote label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #374151;
+}
+#usaalo-quote input[type=text],
+#usaalo-quote input[type=number],
+#usaalo-quote input[type=date],
+#usaalo-quote select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+#num_days { max-width: 100% !important; }
+
+/* ========================
+   Botones
+======================== */
+.usaalo-controls button {
+    background-color: #0073aa;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.2s;
+    padding: 10px;
+}
+#usaalo-quote button:hover { background-color: #005177; }
+
+/* ========================
+   Resumen y mensajes
+======================== */
+#usaalo-summary,
+#usaalo-price,
+#price-base {
+    margin-top: 12px;
+    font-size: 15px;
+    color: inherit;
+    font-weight: 600;
+}
+#usaalo-message {
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    display: none;
+}
+#usaalo-message.info { background:#e0f7fa; color:#006064; }
+#usaalo-message.error { background:#ffebee; color:#c62828; }
+#quote-error { color: #d32f2f; font-weight: 600; margin-top: 12px; }
+
+/* ========================
+   Select2 ajustes
+======================== */
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice__remove {
+    background: transparent;
+    border: none;
+    color: #121359;
+    font-size: 14px;
+    margin-right: 2px;
+    cursor: pointer;
+}
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice__remove:hover {
+    color: #d32f2f;
+}
+#usaalo-cotizador-wizard .select2-container--default .select2-selection__choice {
+    padding: 0 4px 0 8px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* ========================
+   Select2 Personalizado País
+======================== */
+
+/* Altura uniforme */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    min-height: 38px;
+    height: 28px;
+    border: 1px solid #d1d5db; /* gris elegante */
+    border-radius: 8px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    background-color: #fff;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__display{
+  margin-left: 30px !important;
+  color: #121359 !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__clear{
+  width: 20px !important;
+}
+/* Texto dentro */
+.select2-container--default .select2-selection__rendered {
+    line-height: normal !important;
+    padding-left: 28px !important; /* espacio para la bandera */
+    font-size: 14px;
+    color: #374151;
+    margin: 0 !important;
+}
+
+/* Icono de dropdown */
+.select2-container--default .select2-selection__arrow {
+    top: 50% !important;
+    transform: translateY(-50%);
+    right: 8px;
+}
+
+/* Bandera en lista */
+.select2-results__option img {
+    width: 18px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+/* Bandera en selección */
+.select2-container--default .select2-selection__rendered img {
+    position: absolute;
+    left: 8px;
+    width: 18px;
+    height: 14px;
+    border-radius: 2px;
+}
+
+/* MULTIPLE: Píldoras de selección */
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #f19200; /* gris claro */
+    border: 1px solid #121359;
+    border-radius: 6px;
+    padding: 2px 6px 2px 24px;
+    font-size: 13px;
+    position: relative;
+    margin: 3px;
+    color: #121359;
+}
+.select2-container--open .select2-dropdown--below{
+  top: 32px;
+}
+.select2-container .select2-search--inline .select2-search__field{
+  min-height: 28px !important;
+  overflow: auto !important;
+}
+
+/* Bandera dentro de la píldora */
+.select2-container--default .select2-selection--multiple .select2-selection__choice img {
+    position: absolute;
+    left: 20px;
+    top: 5px;
+    width: 14px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* Botón de eliminar (X) */
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    margin-left: auto;
+    margin-right: 4px;
+    color: #6b7280;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #ef4444; /* rojo al pasar el mouse */
+}
+
+
+/* ========================
+   Opciones SIM y Servicios
+======================== */
+.usaalo-sim-buttons,
+.usaalo-services-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 12px;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sim-option,
+.service-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    padding: 12px;
+    margin: 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #f9f9f9;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.sim-option:hover,
+.service-option:hover {
+    transform: translateY(-3px);
+    background: #eef6ff;
+    border-color: #0073e6;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.sim-option input,
+.service-option input { display: none; }
+
+.sim-option input:checked + span,
+.service-option input:checked + span {
+    background-color: #0073aa;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0,115,170,0.3);
+    transform: scale(1.05);
+}
+
+.sim-option:has(input:checked),
+.service-option:has(input:checked) {
+    background-color: #76c5eb;
+    border-color: #0073aa;
+    box-shadow: 0 4px 8px rgba(0,115,170,0.25);
+}
+
+.sim-icon, .service-icon { font-size: 18px; }
+
+/* ========================
+   Responsive
+======================== */
+@media (max-width: 768px) {
+    #usaalo-cotizador-wizard { padding: 12px; }
+    .usaalo-steps { flex-direction: column; gap: 8px; }
+    .usaalo-sim-buttons, .usaalo-services-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    .sim-option, .service-option { width: 100%; max-width: 150px; }
+}
+
+/* ========================
+   Otros
+======================== */
+p.btn-prev-next>button { margin-top: 15px !important; }
+
+#usaalo-summary .highlight {
+    background-color: #0073aa;
+    color: #fff;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.field-error {
+    border: 2px solid #e74c3c !important;
+    background-color: #fdecea;
+}
+
+/* ============================
+   Banderas en select2
+============================ */
+.country-flag {
+    width: 24px;
+    height: 18px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+.country-disabled { cursor: not-allowed; }
+
+.select2-results__option:has(.country-disabled) {
+    background-color: #f87171;
+    color: #fff !important;
+    font-style: italic;
+}
+.select2-selection__rendered .country-flag,
+.select2-results__option .country-flag {
+    width: 24px;
+    height: 18px;
+    margin-right: 6px;
+}
+#country {
+    height: 28px !important;
+    min-height: 28px;
+    line-height: 28px;
+}
+
+/* ========================
+   Loader
+======================== */
+#usaalo-loader {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  transition: opacity 0.3s ease;
+}
+#usaalo-loader.hidden { display: none; }
+#usaalo-loader .loader-content { text-align: center; color: #fff; }
+#usaalo-loader .spinner {
+  width: 70px; height: 70px;
+  border: 6px solid #fff;
+  border-top: 6px solid #38bdf8;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 15px;
+}
+@keyframes spin { 0% {transform: rotate(0);} 100% {transform: rotate(360deg);} }
+
+/* ========================
+   Animación Shimmer
+======================== */
+@keyframes shimmer {
+  0% {
+    background-position: -500px 0;
+  }
+  100% {
+    background-position: 500px 0;
+  }
+}
+
+.shimmer-effect {
+  display: inline-block;
+  background: linear-gradient(90deg, #e0f0f0 25%, #f4f9f9 50%, #e0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ========================
+   Botones de servicios
+======================== */
+.service-type label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 5px;
+  padding: 10px 14px;
+  background: #f4f9f9;
+  border: 2px solid #2a9d8f;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.service-type label:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.service-type input[type="radio"],
+.service-type input[type="checkbox"] {
+  display: none;
+}
+
+.service-type input:checked + span,
+.service-type input:checked ~ span {
+  background-color: #2a9d8f;
+  color: #fff;
+  border-color: #2a9d8f;
+}
+
+/* ========================
+   Tooltips
+======================== */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: max-content;
+  max-width: 200px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: normal;
+}
+
+.tooltip .tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%; 
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* ========================
+   Precios
+======================== */
+
+.price-label {
+  display: block;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.price-total {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2a9d8f;
+  background: #f4f9f9;
+  border: 2px solid #2a9d8f;
+  padding: 12px 20px;
+  border-radius: 10px;
+  display: inline-block;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  animation: shimmer 1.5s infinite;
+}
+
+.summary-title {
+    font-size: 1.5rem;
+    color: #2a9d8f;
+    margin-bottom: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.summary-container {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.summary-container p {
+    margin: 10px 0;
+    font-size: 1rem;
+}
+
+.summary-container .highlight {
+    color: #264653;
+    font-weight: 600;
+    margin-left: 5px;
+}
+
+.price-summary {
+    font-size: 1.3rem;
+    text-align: center;
+    margin-top: 15px;
+    background: #e0f7f4;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.price-summary .price {
+    color: #2a9d8f;
+    font-weight: bold;
+    font-size: 1.4rem;
+}
+.hidden{
+    display: none !important;
+}
+.usaalo-confirm{
+  height: 4.5rem !important;
+}
+
+/* Estilo para escritorio */
+.usaalo-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* Botones alineados a la izquierda */
+.usaalo-controls .buttons {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* Label centrado */
+.usaalo-controls .price-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Precio alineado a la derecha */
+.usaalo-controls .price-total {
+  flex: 1;
+  text-align: right;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+/* ========================
+   Responsive
+======================== */
+
+/* Tablets y pantallas medianas */
+@media (max-width: 1024px) {
+    .select2-container--open .select2-dropdown{
+      top: 46px;
+    }
+    .usaalo-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+    }
+
+    .usaalo-controls .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .usaalo-controls button {
+        width: 100%;
+    }
+
+    .price-label {
+        margin-bottom: 4px;
+    }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+  .select2-container--open .select2-dropdown{
+      top: 46px;
+    }
+    .usaalo-controls {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .price-label {
+        display: block;
+        text-align: center;
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    #usaalo-price {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        margin: 0 auto;
+    }
+
+    .usaalo-controls .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .usaalo-controls button {
+        width: 100%;
+        font-size: 14px;
+        padding: 12px;
+    }
+}
+
+/* Extra pequeños (teléfonos <480px) */
+@media (max-width: 480px) {
+    .usaalo-controls {
+        gap: 12px;
+    }
+
+    .price-total {
+        font-size: 1.5rem;
+        padding: 10px 16px;
+    }
+
+    .usaalo-controls button {
+        font-size: 13px;
+        padding: 10px;
+    }
+}
+

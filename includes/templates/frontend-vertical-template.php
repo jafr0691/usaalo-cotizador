@@ -50,16 +50,16 @@
             <!-- Fecha inicio -->
             <label><?php _e('¿Cuándo quieres empezar tu plan de datos? 📅', 'usaalo-cotizador'); ?></label>
             <div class="flatpickr" data-wrap="true">
-                <input type="text" id="start_date" name="start_date" value="<?php echo date('d / m / Y'); ?>" data-input required>
+                <input 
+                    type="text" 
+                    id="SIM_dates" 
+                    name="start_date" 
+                    class="usaalo-date-range" 
+                    placeholder="<?php _e('Llegada - Salida', 'usaalo-cotizador'); ?>" 
+                    autocomplete="off" 
+                    required
+                >
             </div>
-
-            <!-- Número de días -->
-            <label><?php _e('¿Por cuántos días necesitas cobertura? ⏳', 'usaalo-cotizador'); ?></label>
-            <input type="number" id="num_days" name="num_days" min="1" value="1" required>
-
-            <!-- Fecha fin -->
-            <label style="display:none;"><?php _e('¿Hasta cuándo quieres tu plan? 📆', 'usaalo-cotizador'); ?></label>
-            <input style="display:none;" class="country-disabled" type="date" id="end_date" name="end_date" readonly required>
         </div>
 
 

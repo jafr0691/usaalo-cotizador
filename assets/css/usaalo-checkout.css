@@ -27,3 +27,27 @@
     width: auto;
     margin-right: 8px;
 }
+.woocommerce form .form-row .description {
+    display: inline-block;
+    margin-left: 8px;
+    color: #555;
+    font-size: 0.85em;
+    cursor: help;
+    border-bottom: 1px dotted #aaa; /* simula tooltip */
+}
+.checkout-two-columns {
+  display: flex;
+  gap: 40px;
+}
+
+.checkout-two-columns .checkout-column {
+  flex: 1;
+}
+
+.checkout-two-columns .checkout-form {
+  max-width: 60%;
+}
+
+.checkout-two-columns .checkout-review {
+  max-width: 40%;
+}

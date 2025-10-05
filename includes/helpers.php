@@ -56,10 +56,14 @@ class USAALO_Helpers {
 
     // Obtener un país por código
     public static function usaalo_get_country($id) {
-        $wpdb = self::db();
+        global $wpdb;
         $table = $wpdb->prefix . 'usaalo_countries';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %s", $id), ARRAY_A);
+        return $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id),
+            ARRAY_A
+        );
     }
+
 
     // Guardar o actualizar un país
     public static function usaalo_save_country($data) {
@@ -346,16 +350,6 @@ class USAALO_Helpers {
         $table_brands         = $wpdb->prefix . 'usaalo_brands';
         $table_countries      = $wpdb->prefix . 'usaalo_countries';
 
-        // $country = sanitize_text_field($data['country'] ?? '');
-        // $brand   = sanitize_text_field($data['brand'] ?? '');
-        // $model   = sanitize_text_field($data['model'] ?? '');
-
-        // $where = [];
-        // if ($country) $where[] = $wpdb->prepare("c.name LIKE %s", "%$country%");
-        // if ($brand)   $where[] = $wpdb->prepare("b.name LIKE %s", "%$brand%");
-        // if ($model)   $where[] = $wpdb->prepare("m.name LIKE %s", "%$model%");
-
-
         $sql = "
             SELECT 
                 c.id AS country_id,
@@ -377,9 +371,7 @@ class USAALO_Helpers {
             ORDER BY c.name, b.name, m.name
         ";
 
-        // $where_sql = $where ? "WHERE " . implode(" AND ", $where) : "";
-
-        $results = $wpdb->get_results($sql, ARRAY_A);
+        $results = $wpdb->get_results($sql . " LIMIT 50", ARRAY_A);
 
         return $results;
     }
@@ -875,45 +867,40 @@ class USAALO_Helpers {
     }
 
 
-
     public static function get_shipping_cost( $country_code = 'CO' ) {
         if ( ! class_exists('WooCommerce') ) return 0;
 
-        // Usar país del cotizador o default de WooCommerce
-        $country_code = $country_code ?: get_option('woocommerce_default_country');
+        // Obtener todas las zonas de envío
+        $shipping_zones = WC_Shipping_Zones::get_zones();
 
-        // Crear paquete simulado
-        $package = [
-            'destination' => [
-                'country'  => $country_code,
-                'state'    => '',
-                'postcode' => '',
-                'city'     => '',
-                'address'  => '',
-                'address_2'=> '',
-            ],
-            'contents' => [
-                [
-                    'data'     => new WC_Product_Simple(), // Producto ficticio
-                    'quantity' => 1,
-                ],
-            ],
-            'contents_cost'    => 0,
-            'applied_coupons'  => [],
-            'user'             => 0, // Cliente no logeado
-        ];
+        $found_rates = [];
 
-        // Forzar cálculo
-        $shipping = WC_Shipping::instance();
-        $shipping->calculate_shipping( [ $package ] );
+        foreach ( $shipping_zones as $zone ) {
+            // Buscar la zona llamada SIM
+            if ( stripos($zone['zone_name'], 'SIM') !== false ) {
+                foreach ( $zone['shipping_methods'] as $method ) {
+                    if ( $method->enabled === 'yes' ) {
+                        // Capturar el costo del método
+                        if ( isset($method->cost) && $method->cost !== '' ) {
+                            $found_rates[] = floatval( $method->cost );
+                        } elseif ( isset($method->instance_settings['cost']) && $method->instance_settings['cost'] !== '' ) {
+                            $found_rates[] = floatval( $method->instance_settings['cost'] );
+                        }
+                    }
+                }
+            }
+        }
 
-        $packages = $shipping->get_packages();
-        if ( empty($packages[0]['rates']) ) return 0;
+        // Si no encuentra nada, devuelve -1 para depurar
+        if ( empty($found_rates) ) {
+            return -1;
+        }
 
-        // Tomar primera tarifa disponible
-        $rate = reset($packages[0]['rates']);
-        return floatval($rate->get_cost());
+        // Siempre el más barato
+        return min($found_rates);
     }
+
+
 
 
 
@@ -999,80 +986,80 @@ class USAALO_Helpers {
     }
 
     public static function servicios_disponibles_todos_modelos(): array {
-    $wpdb = self::db();
+        $wpdb = self::db();
 
-    // Obtener todos los modelos
-    $models = $wpdb->get_results("SELECT id FROM {$wpdb->prefix}usaalo_device_config");
+        // Obtener todos los modelos
+        $models = $wpdb->get_results("SELECT id FROM {$wpdb->prefix}usaalo_device_config");
 
-    // Obtener todos los países
-    $countries = $wpdb->get_results("SELECT id, code FROM {$wpdb->prefix}usaalo_countries");
+        // Obtener todos los países
+        $countries = $wpdb->get_results("SELECT id, code FROM {$wpdb->prefix}usaalo_countries");
 
-    $services_cache = [];
+        $services_cache = [];
 
-    foreach ($models as $model) {
-        $model_id = (int)$model->id;
+        foreach ($models as $model) {
+            $model_id = (int)$model->id;
 
-        // Obtener configuración global del modelo
-        $global = $wpdb->get_row($wpdb->prepare(
-            "SELECT sim_supported, esim_supported, voice_supported, sms_supported, data_supported 
-             FROM {$wpdb->prefix}usaalo_device_config 
-             WHERE model_id=%d",
-            $model_id
-        ));
+            // Obtener configuración global del modelo
+            $global = $wpdb->get_row($wpdb->prepare(
+                "SELECT sim_supported, esim_supported, voice_supported, sms_supported, data_supported 
+                FROM {$wpdb->prefix}usaalo_device_config 
+                WHERE model_id=%d",
+                $model_id
+            ));
 
-        if (!$global) continue;
+            if (!$global) continue;
 
-        // Obtener configuraciones por país
-        $country_ids = array_column((array)$countries, 'id');
-        $placeholders = implode(',', array_fill(0, count($country_ids), '%d'));
+            // Obtener configuraciones por país
+            $country_ids = array_column((array)$countries, 'id');
+            $placeholders = implode(',', array_fill(0, count($country_ids), '%d'));
 
-        $sql = "SELECT country_id,
-                       COALESCE(sim_supported,%d) AS sim,
-                       COALESCE(esim_supported,%d) AS esim,
-                       COALESCE(voice_supported,%d) AS voice,
-                       COALESCE(sms_supported,%d) AS sms,
-                       COALESCE(data_supported,%d) AS data
-                FROM {$wpdb->prefix}usaalo_device_country
-                WHERE model_id=%d AND country_id IN ($placeholders)";
+            $sql = "SELECT country_id,
+                        COALESCE(sim_supported,%d) AS sim,
+                        COALESCE(esim_supported,%d) AS esim,
+                        COALESCE(voice_supported,%d) AS voice,
+                        COALESCE(sms_supported,%d) AS sms,
+                        COALESCE(data_supported,%d) AS data
+                    FROM {$wpdb->prefix}usaalo_device_country
+                    WHERE model_id=%d AND country_id IN ($placeholders)";
 
-        $params = array_merge(
-            [$global->sim_supported, $global->esim_supported, $global->voice_supported, $global->sms_supported, $global->data_supported, $model_id],
-            $country_ids
-        );
+            $params = array_merge(
+                [$global->sim_supported, $global->esim_supported, $global->voice_supported, $global->sms_supported, $global->data_supported, $model_id],
+                $country_ids
+            );
 
-        $results = $wpdb->get_results($wpdb->prepare($sql, ...$params));
+            $results = $wpdb->get_results($wpdb->prepare($sql, ...$params));
 
-        // Mapear resultados por country_id
-        $results_map = [];
-        foreach ($results as $r) {
-            $results_map[$r->country_id] = $r;
+            // Mapear resultados por country_id
+            $results_map = [];
+            foreach ($results as $r) {
+                $results_map[$r->country_id] = $r;
+            }
+
+            // Generar servicios por país
+            foreach ($countries as $c) {
+                $row = $results_map[$c->id] ?? (object)[
+                    'sim'=>$global->sim_supported,
+                    'esim'=>$global->esim_supported,
+                    'voice'=>$global->voice_supported,
+                    'sms'=>$global->sms_supported,
+                    'data'=>$global->data_supported
+                ];
+
+                $country_services = ['code'=>$c->code, 'id'=>$c->id, 'services'=>[]];
+                if ($row->data) $country_services['services'][] = 'datos';
+                if ($row->voice) $country_services['services'][] = 'llamadas';
+                if ($row->sms) $country_services['services'][] = 'sms';
+                if ($row->esim) $country_services['services'][] = 'esim';
+                if ($row->sim) $country_services['services'][] = 'sim';
+
+                $services_cache[$model_id][$c->code] = !empty($country_services['services']) 
+                    ? $country_services 
+                    : ['code'=>$c->code, 'id'=>$c->id, 'services'=>['sin configuración']];
+            }
         }
 
-        // Generar servicios por país
-        foreach ($countries as $c) {
-            $row = $results_map[$c->id] ?? (object)[
-                'sim'=>$global->sim_supported,
-                'esim'=>$global->esim_supported,
-                'voice'=>$global->voice_supported,
-                'sms'=>$global->sms_supported,
-                'data'=>$global->data_supported
-            ];
-
-            $country_services = ['code'=>$c->code, 'id'=>$c->id, 'services'=>[]];
-            if ($row->data) $country_services['services'][] = 'datos';
-            if ($row->voice) $country_services['services'][] = 'llamadas';
-            if ($row->sms) $country_services['services'][] = 'sms';
-            if ($row->esim) $country_services['services'][] = 'esim';
-            if ($row->sim) $country_services['services'][] = 'sim';
-
-            $services_cache[$model_id][$c->code] = !empty($country_services['services']) 
-                ? $country_services 
-                : ['code'=>$c->code, 'id'=>$c->id, 'services'=>['sin configuración']];
-        }
+        return $services_cache;
     }
-
-    return $services_cache;
-}
 
     /**
      * Calcular precio de plan WooCommerce por días, servicios y SIM física

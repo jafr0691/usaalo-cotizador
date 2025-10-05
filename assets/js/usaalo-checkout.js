@@ -26,4 +26,10 @@ jQuery(function($){
     if(cart.valor_plan){
         $('#valor_plan').val(cart.valor_plan);
     }
+
+    $('.help-tip').each(function() {
+        let tip = $(this).attr('title');
+        $(this).attr('data-tooltip', tip).removeAttr('title');
+    });
+
 });

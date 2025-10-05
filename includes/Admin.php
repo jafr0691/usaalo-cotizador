@@ -31,7 +31,7 @@ class USAALO_Admin {
             __('Usaalo Cotizador', 'usaalo-cotizador'),
             'manage_options',
             'usaalo-cotizador',          // slug
-            [$this, 'render_countries_page'],
+            [$this, 'render_manual_page'],
             'dashicons-cart',
             56
         );
@@ -126,6 +126,8 @@ class USAALO_Admin {
             $countries_regions = [];
         }
 
+        $config = get_option('usaalo_cotizador_config', []);
+
         // Pasar datos útiles al JS: ajaxurl, nonce, traducciones e información del hook actual
         wp_localize_script('usaalo-admin', 'USAALO_Admin', [
             'ajaxurl' => admin_url('admin-ajax.php'),
@@ -135,9 +137,22 @@ class USAALO_Admin {
                 'saved' => __('Guardado correctamente', 'usaalo-cotizador'),
                 'deleted' => __('Eliminado correctamente', 'usaalo-cotizador'),
                 'confirm_delete' => __('¿Seguro que deseas eliminar este elemento?', 'usaalo-cotizador'),
+                'mostrar' => __('Mostrar', 'usaalo-cotizador'),
+                'ocultar' => __('Ocultar', 'usaalo-cotizador'),
+                'multiple' => __('Multiple', 'usaalo-cotizador'),
+                'simple' => __('Simple', 'usaalo-cotizador'),
+                'horizontal' => __('horizontal', 'usaalo-cotizador'),
+                'vertical' => __('vertical', 'usaalo-cotizador'),
             ],
             'countries_regions' => $countries_regions,
             'currency_symbol' => get_woocommerce_currency_symbol(),
+            'show_brand' => !empty($config['show_brand']) ? 1 : 0,
+            'show_model' => !empty($config['show_model']) ? 1 : 0,
+            'show_sim' => !empty($config['show_sim']) ? 1 : 0,
+            'show_esim' => !empty($config['show_esim']) ? 1 : 0,
+            'show_datos' => !empty($config['show_datos']) ? 1 : 0,
+            'show_voz' => !empty($config['show_voz']) ? 1 : 0,
+            'show_sms' => !empty($config['show_sms']) ? 1 : 0,
         ]);
 
     }
@@ -216,6 +231,11 @@ class USAALO_Admin {
 
     /* ---------- Renderers de página ---------- */
 
+    public function render_manual_page() {
+        if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
+        include USAALO_PATH . 'includes/templates/admin-manual-template.php';
+    }
+
     public function render_countries_page() {
         if (!current_user_can('manage_options')) wp_die(__('No autorizado','usaalo-cotizador'));
         $countries = method_exists($this->helpers, 'get_countries') ? $this->helpers->get_countries() : [];
@@ -227,6 +247,7 @@ class USAALO_Admin {
         $brands    = method_exists($this->helpers, 'get_brands') ? $this->helpers->get_brands() : [];
         $models    = method_exists($this->helpers, 'get_models') ? $this->helpers->get_models() : [];
         include USAALO_PATH . 'includes/templates/admin-brands-models-template.php';
+        var_dump(get_option('usaalo_cotizador_config', []));
     }
 
     public function render_sim_servicio_page() {
